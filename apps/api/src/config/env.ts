@@ -59,6 +59,15 @@ export const envSchema = z
     MAIL_TRANSPORT: z.enum(['smtp', 'outbox', 'disabled']).optional(),
     MAIL_OUTBOX_DIR: z.string().default('.mail-outbox'),
 
+    /**
+     * Distanze comune → sede: osrm (servizio OSRM self-hosted) oppure estimate
+     * (linea d'aria × coefficiente, nessun servizio esterno).
+     */
+    ROUTING_PROVIDER: z.enum(['osrm', 'estimate']).default('estimate'),
+    /** URL interno di OSRM (es. http://osrm:5000). Riceve solo coordinate di comuni e sedi. */
+    OSRM_URL: z.string().optional().default(''),
+    ROUTING_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(5000),
+
     JOBS_ENABLED: bool.default(true),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   })
@@ -83,6 +92,9 @@ export const envSchema = z
         path: ['CORPORATE_AUTH_URL'],
         message: 'obbligatorio e deve essere https:// (le credenziali non viaggiano mai in chiaro)',
       });
+    }
+    if (env.ROUTING_PROVIDER === 'osrm' && !/^https?:\/\//.test(env.OSRM_URL)) {
+      ctx.addIssue({ code: 'custom', path: ['OSRM_URL'], message: 'obbligatorio con ROUTING_PROVIDER=osrm' });
     }
     if (env.CORPORATE_CHECK_URL && !env.CORPORATE_CHECK_URL.startsWith('https://')) {
       ctx.addIssue({ code: 'custom', path: ['CORPORATE_CHECK_URL'], message: 'deve essere https://' });

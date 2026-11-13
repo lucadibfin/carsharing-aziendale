@@ -5,6 +5,7 @@ import { Clock } from '../common/clock.js';
 import { PrismaService, type Tx } from '../common/prisma.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { StatsService } from '../stats/stats.service.js';
 import { ChatMembershipEvents } from './chat-membership.events.js';
 import { TripAccessPolicy } from './trip-access.policy.js';
 import { TripsService } from './trips.service.js';
@@ -33,6 +34,7 @@ export class ParticipationService {
     private readonly settings: SettingsService,
     private readonly notifications: NotificationsService,
     private readonly chatEvents: ChatMembershipEvents,
+    private readonly stats: StatsService,
   ) {}
 
   /** Richiesta di partecipazione: solo viaggi PUBBLICI (i privati non accettano richieste esterne). */
@@ -151,12 +153,20 @@ export class ParticipationService {
       throw new AppException('INVALID_PARTICIPANT', 'Puoi indicare come presenti solo i partecipanti confermati');
     }
     const present = new Set(presentIds);
+    // Distanze calcolate prima della transazione (possibile chiamata al servizio di routing).
+    const plan = await this.stats.planClosure(
+      tripId,
+      accepted.filter((p) => present.has(p.id)).map((p) => p.userId),
+    );
     await this.prisma.$transaction(async (tx) => {
+      // Chiusura atomica: due richieste concorrenti non generano statistiche doppie.
+      const r = await tx.trip.updateMany({ where: { id: tripId, status: 'SCHEDULED' }, data: { status: 'CLOSED', closedAt: now } });
+      if (r.count === 0) throw Conflict('TRIP_NOT_OPEN', 'Il viaggio è già chiuso o annullato');
       for (const p of accepted) {
         await tx.tripParticipant.update({ where: { id: p.id }, data: { attended: present.has(p.id) } });
       }
-      await tx.trip.update({ where: { id: tripId }, data: { status: 'CLOSED', closedAt: now } });
-      // Fase 2: qui si genera il TripStatFact anonimo per le statistiche aggregate.
+      // Fatto anonimo per i report aggregati e statistiche personali dei presenti.
+      await this.stats.writeClosure(tx, plan);
     });
     return this.trips.detail(tripId, driverId);
   }

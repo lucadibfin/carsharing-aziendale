@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, '..');
 const src = resolve(root, '../../node_modules/@material-symbols/svg-400/outlined');
 const dst = resolve(root, 'public/icons/ms');
 const list = readFileSync(resolve(root, 'src/app/core/icons.ts'), 'utf8');
-const names = [...list.matchAll(/'([a-z0-9_]+)'/g)].map((m) => m[1]);
+const names = [...list.matchAll(/'([a-z0-9_-]+)'/g)].map((m) => m[1]);
 
 mkdirSync(dst, { recursive: true });
 for (const n of names) copyFileSync(resolve(src, `${n}.svg`), resolve(dst, `${n}.svg`));

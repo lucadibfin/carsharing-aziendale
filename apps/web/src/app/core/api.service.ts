@@ -13,6 +13,7 @@ import type {
   MeDto,
   MyTripsDto,
   OnboardingInput,
+  PersonalStatsDto,
   PolicyDto,
   ProfileDto,
   PushSubscriptionInput,
@@ -101,6 +102,9 @@ export class ApiService {
   sendChat = (tripId: string, body: { text?: string; quickCode?: string }) =>
     this.post<ChatMessageDto>(`/trips/${tripId}/chat/messages`, body);
   muteChat = (tripId: string, muted: boolean) => this.put<void>(`/trips/${tripId}/chat/mute`, { muted });
+
+  // statistiche
+  myStats = () => this.get<PersonalStatsDto>('/stats/me');
 
   // push
   pushKey = () => this.get<{ publicKey: string; enabled: boolean }>('/push/public-key');

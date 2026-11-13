@@ -76,6 +76,21 @@ try {
       );
     }
     console.log('Sedi di esempio create (solo sviluppo)');
+
+    // Coordinate approssimative (centro del comune) di alcuni comuni, per provare le
+    // statistiche senza aver importato il dataset completo (vedi docs/distanze.md).
+    // Non sovrascrivono coordinate già importate.
+    const devCoords = [
+      ['015146', 45.4642, 9.19], // Milano
+      ['108033', 45.5845, 9.2744], // Monza
+      ['015209', 45.5358, 9.2386], // Sesto San Giovanni
+      ['016024', 45.6983, 9.6773], // Bergamo
+      ['058091', 41.9028, 12.4964], // Roma
+      ['001272', 45.0703, 7.6869], // Torino
+    ];
+    for (const [istat, lat, lon] of devCoords) {
+      await client.query(`UPDATE "Comune" SET lat = $2, lon = $3 WHERE istat = $1 AND lat IS NULL`, [istat, lat, lon]);
+    }
   }
 
   await client.query('COMMIT');

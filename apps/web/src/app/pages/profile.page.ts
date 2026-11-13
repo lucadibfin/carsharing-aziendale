@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -18,10 +19,13 @@ import { EmailVerifyComponent } from '../shared/email-verify.component';
 
 @Component({
   selector: 'app-profile-page',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule, ComunePickerComponent, EmailVerifyComponent],
+  imports: [FormsModule, RouterLink, MatButtonModule, MatCardModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule, ComunePickerComponent, EmailVerifyComponent],
   template: `
     <div class="page">
       <h1 class="page-title">Profilo</h1>
+      <nav class="links" aria-label="Sezioni del profilo">
+        <a mat-stroked-button routerLink="/statistiche"><mat-icon svgIcon="eco" />Le mie statistiche</a>
+      </nav>
       @if (p(); as p) {
         <mat-card appearance="outlined">
           <mat-card-content class="stack">
@@ -120,6 +124,7 @@ import { EmailVerifyComponent } from '../shared/email-verify.component';
   `,
   styles: `
     .name { font: var(--mat-sys-title-large); }
+    .links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
     .small { font-size: 0.85em; }
   `,
 })

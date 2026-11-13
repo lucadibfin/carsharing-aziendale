@@ -165,6 +165,27 @@ export interface MyTripsDto {
   awaitingClosure: TripSummaryDto[];
 }
 
+export interface StatsPeriodDto {
+  asDriver: number;
+  asPassenger: number;
+  /** Km percorsi insieme ad altri colleghi. */
+  sharedKm: number;
+  /** Km in auto evitati (passeggero: i propri; conducente: quelli dei suoi passeggeri). */
+  kmAvoided: number;
+  co2SavedKg: number;
+  /** Carburante risparmiato per unità (L, kg, kWh). */
+  fuelSaved: { unit: string; amount: number }[];
+  eurSaved: number;
+}
+
+export interface PersonalStatsDto {
+  year: number;
+  allTime: StatsPeriodDto;
+  thisYear: StatsPeriodDto;
+  /** true se alcune distanze sono stimate (linea d'aria) e non calcolate su strada. */
+  anyEstimated: boolean;
+}
+
 export interface ChatMessageDto {
   id: string;
   tripId: string;

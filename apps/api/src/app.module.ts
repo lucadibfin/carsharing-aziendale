@@ -11,6 +11,7 @@ import { loadEnv } from './config/env.js';
 import { loggerOptions } from './logging.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { PoliciesModule } from './policies/policies.module.js';
+import { StatsModule } from './stats/stats.module.js';
 import { TripsModule } from './trips/trips.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -19,6 +20,7 @@ import { UsersModule } from './users/users.module.js';
     ConfigModule,
     LoggerModule.forRootAsync({ useFactory: () => loggerOptions(loadEnv()) }),
     CommonModule,
+    StatsModule,
     PoliciesModule,
     NotificationsModule,
     AuthModule,

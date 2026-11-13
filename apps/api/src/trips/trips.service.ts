@@ -14,6 +14,7 @@ import { addDays, dateOnly, romeToUtc, todayInRome } from '../common/time.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { StatsService } from '../stats/stats.service.js';
 import { ChatMembershipEvents } from './chat-membership.events.js';
 import { TripAccessPolicy } from './trip-access.policy.js';
 import { tripInclude } from './trip-loader.js';
@@ -34,6 +35,7 @@ export class TripsService {
     private readonly settings: SettingsService,
     private readonly notifications: NotificationsService,
     private readonly chatEvents: ChatMembershipEvents,
+    private readonly stats: StatsService,
   ) {}
 
   async create(userId: string, input: CreateTripInput): Promise<TripDetailDto> {
@@ -68,7 +70,7 @@ export class TripsService {
           stops: { create: codes.map((comuneIstat, order) => ({ order, comuneIstat })) },
         },
       });
-      return tx.trip.create({
+      const created = await tx.trip.create({
         data: {
           seriesId: series.id,
           siteId: input.siteId,
@@ -79,6 +81,8 @@ export class TripsService {
           seats: input.seats,
         },
       });
+      await this.stats.syncFact(created.id, tx);
+      return created;
     });
     return this.detail(trip.id, userId);
   }
@@ -194,6 +198,7 @@ export class TripsService {
           rejected.push(...pending.map((p) => p.userId));
         }
       }
+      await this.stats.syncFact(tripId, tx);
     });
     if (rejected.length) await this.notifications.notify(rejected, 'REQUEST_REJECTED', tripId);
     return this.detail(tripId, userId);
@@ -219,6 +224,7 @@ export class TripsService {
       });
       await tx.trip.update({ where: { id: tripId }, data: { status: 'CANCELLED', cancelledAt: now } });
       await tx.invitation.updateMany({ where: { tripId, status: 'PENDING' }, data: { status: 'REVOKED', revokedAt: now } });
+      await this.stats.syncFact(tripId, tx);
       return participants.map((p) => p.userId);
     });
   }

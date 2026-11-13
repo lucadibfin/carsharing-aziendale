@@ -82,6 +82,24 @@ enum PolicyType {
   TERMS
 }
 
+enum DistanceSource {
+  /// Distanza stradale calcolata dal servizio di routing (OSRM self-hosted).
+  ROUTED
+  /// Stima: distanza in linea d'aria × coefficiente stradale.
+  ESTIMATED
+}
+
+enum TripFactStatus {
+  PROPOSED
+  COMPLETED
+  CANCELLED
+}
+
+enum StatRole {
+  DRIVER
+  PASSENGER
+}
+
 // ---------------------------------------------------------------------------
 // Dati di riferimento (pubblici)
 // ---------------------------------------------------------------------------
@@ -116,6 +134,21 @@ model Site {
   users       User[]
   roles       RoleAssignment[]
   series      TripSeries[]
+  distances   DistanceCache[]
+}
+
+/// Cache delle distanze stradali comune → sede. Solo dati pubblici: nessun
+/// indirizzo o posizione degli utenti.
+model DistanceCache {
+  comuneIstat String         @db.Char(6)
+  siteId      String         @db.Uuid
+  meters      Int
+  source      DistanceSource
+  computedAt  DateTime
+
+  site        Site           @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@id([comuneIstat, siteId])
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +193,7 @@ model User {
   chatMutes           ChatMute[]
   pushSubscriptions   PushSubscription[]
   emailVerification   EmailVerification?
+  statEntries         UserStatEntry[]
 
   @@index([lastName, firstName])
 }
@@ -352,6 +386,7 @@ model Trip {
   series             TripSeries      @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   participants       TripParticipant[]
   invitations        Invitation[]
+  statFact           TripStatFact?
 
   @@unique([seriesId, date])
   @@index([siteId, date])
@@ -404,6 +439,71 @@ model Invitation {
 
   @@index([inviteeId, status])
   @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Statistiche
+// ---------------------------------------------------------------------------
+
+/// Fatto statistico ANONIMO di un viaggio, per i report aggregati (PSCL).
+/// Nessun riferimento a utenti: resta anche dopo la cancellazione degli account.
+/// tripId serve solo ad aggiornare la riga finché il viaggio esiste; quando il
+/// viaggio viene cancellato diventa null (ON DELETE SET NULL).
+model TripStatFact {
+  id          String         @id @default(uuid()) @db.Uuid
+  tripId      String?        @unique @db.Uuid
+  siteId      String         @db.Uuid
+  date        DateTime       @db.Date
+  visibility  TripVisibility
+  status      TripFactStatus
+  seats       Int
+  /// Passeggeri presenti (solo viaggi completati).
+  passengers  Int            @default(0)
+  /// 1 = solo andata, 2 = andata e ritorno.
+  legs        Int            @default(1)
+  driverKm    Float?
+  /// Km in auto evitati dai passeggeri (ognuno avrebbe guidato da solo).
+  kmAvoided   Float?
+  co2SavedKg  Float?
+  fuelSaved   Float?
+  /// L, kg o kWh secondo l'alimentazione.
+  fuelUnit    String?
+  eurSaved    Float?
+  /// true se almeno una distanza è stimata (linea d'aria) invece che calcolata.
+  estimated   Boolean        @default(false)
+  /// false se mancavano le coordinate di un comune o della sede (metriche nulle).
+  complete    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  trip        Trip?          @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@index([siteId, date])
+  @@index([date])
+}
+
+/// Statistiche personali (una riga per viaggio completato), calcolate alla
+/// chiusura e indipendenti dal viaggio: restano se il viaggio viene cancellato,
+/// si cancellano con l'account.
+model UserStatEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  date        DateTime @db.Date
+  role        StatRole
+  /// Km percorsi insieme ad altri colleghi.
+  sharedKm    Float
+  /// Passeggero: km che avrebbe guidato da solo. Conducente: somma di quelli dei suoi passeggeri.
+  kmAvoided   Float
+  co2SavedKg  Float
+  fuelSaved   Float
+  fuelUnit    String
+  eurSaved    Float
+  estimated   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
 }
 
 // ---------------------------------------------------------------------------

@@ -11,7 +11,9 @@ import { DomSanitizer } from '@angular/platform-browser';
 export const ICONS = [
   'directions_car', 'visibility', 'visibility_off', 'search', 'add', 'airline_seat_recline_normal', 'schedule',
   'route', 'location_on', 'person', 'chat', 'person_remove', 'close', 'check', 'link', 'arrow_back', 'send',
-  'arrow_upward', 'delete', 'add_location_alt', 'home', 'add_circle',
+  'arrow_upward', 'delete', 'add_location_alt', 'home', 'add_circle', 'eco', 'star', 'star-fill',
+  'admin_panel_settings', 'download', 'flag', 'settings', 'history', 'description', 'group', 'delete_forever',
+  'apartment', 'verified',
 ] as const;
 
 export function registerIcons(): void {
