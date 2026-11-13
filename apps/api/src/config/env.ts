@@ -32,7 +32,12 @@ export const envSchema = z
 
     LOGIN_MAX_FAILURES_PER_USER: z.coerce.number().int().min(1).max(20).default(3),
     LOGIN_MAX_FAILURES_PER_IP: z.coerce.number().int().min(1).max(1000).default(20),
-    LOGIN_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+    /** Durata del blocco temporaneo dopo troppi errori (si toglie da solo). */
+    LOGIN_LOCK_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+    /** Se maggiore di LOGIN_LOCK_MINUTES, il blocco raddoppia a ogni errore fino a questo massimo. */
+    LOGIN_LOCK_MAX_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+    /** Ore senza errori dopo cui il contatore degli errori si azzera. */
+    LOGIN_FAILURES_RESET_HOURS: z.coerce.number().int().min(1).max(168).default(24),
     LOGIN_MIN_RESPONSE_MS: z.coerce.number().int().min(0).max(5000).default(800),
 
     DATA_ENCRYPTION_KEYS: z.string().min(1),

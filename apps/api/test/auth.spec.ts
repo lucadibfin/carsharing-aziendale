@@ -34,6 +34,7 @@ describe('Autenticazione e gestione delle credenziali', () => {
   beforeEach(async () => {
     await resetDb(ctx.prisma);
     resetSpies(ctx);
+    ctx.clock.set('2026-11-16T07:00:00.000Z');
     logs.length = 0;
   });
 
@@ -75,6 +76,26 @@ describe('Autenticazione e gestione delle credenziali', () => {
 
     // Un altro utente dallo stesso IP non è bloccato.
     expect((await c.login('mario.rossi')).status).toBe(204);
+  });
+
+  it('il blocco è temporaneo: dopo 15 minuti si sblocca da solo; un nuovo errore riblocca; il successo azzera', async () => {
+    const spy = vi.spyOn(idp, 'authenticate');
+    const c = await new ApiClient(ctx.app).init();
+    for (let i = 0; i < 3; i++) await c.login('giuseppe.verdi', 'x');
+    expect((await c.login('giuseppe.verdi')).status).toBe(429);
+
+    ctx.clock.set('2026-11-16T07:14:00.000Z'); // 14 minuti dopo: ancora bloccato
+    expect((await c.login('giuseppe.verdi')).status).toBe(429);
+
+    ctx.clock.set('2026-11-16T07:15:01.000Z'); // scaduto il blocco
+    expect((await c.login('giuseppe.verdi', 'x')).status).toBe(401); // il tentativo arriva ad AD…
+    expect((await c.login('giuseppe.verdi')).status).toBe(429); // …ma un errore subito dopo riblocca
+    expect(spy).toHaveBeenCalledTimes(4);
+
+    ctx.clock.set('2026-11-16T07:30:02.000Z');
+    expect((await c.login('giuseppe.verdi')).status).toBe(204); // password giusta: entra
+    expect(await ctx.prisma.loginThrottle.count({ where: { key: { startsWith: 'u:' } } })).toBe(0); // contatore azzerato
+    ctx.clock.set('2026-11-16T07:00:00.000Z');
   });
 
   it('il blocco per username vale anche da IP diversi', async () => {
