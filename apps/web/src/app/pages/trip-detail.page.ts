@@ -14,6 +14,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
 import type { TripDetailDto, TripVisibility, UserSummaryDto } from '@fcs/shared';
 import { ApiService, errorCode } from '../core/api.service';
+import { SessionStore } from '../core/session.store';
 import { ToastService } from '../core/toast.service';
 import { STATUS_LABELS } from '../shared/labels';
 
@@ -51,6 +52,9 @@ import { STATUS_LABELS } from '../shared/labels';
             <div><mat-icon svgIcon="person" />
               Conducente: {{ t.driver.firstName }} {{ t.driver.lastName }}
               @if (t.driverPhone) { · <a [href]="'tel:' + t.driverPhone">{{ t.driverPhone }}</a> }
+              @if (isMember() && !isDriver()) {
+                <ng-container *ngTemplateOutlet="star; context: { $implicit: t.driver }" />
+              }
             </div>
             <div><mat-icon svgIcon="airline_seat_recline_normal" />
               {{ t.seats - t.seatsTaken }} posti liberi su {{ t.seats }}
@@ -109,11 +113,16 @@ import { STATUS_LABELS } from '../shared/labels';
                 <span matListItemLine>Sale a {{ p.boardingComuneName }}
                   @if (p.phone) { · <a [href]="'tel:' + p.phone">{{ p.phone }}</a> }
                 </span>
-                @if (isDriver() && open()) {
-                  <button mat-icon-button matListItemMeta (click)="remove(p.id)" aria-label="Annulla partecipazione">
-                    <mat-icon svgIcon="person_remove" />
-                  </button>
-                }
+                <div matListItemMeta class="row">
+                  @if (isMember() && p.user.id !== myId()) {
+                    <ng-container *ngTemplateOutlet="star; context: { $implicit: p.user }" />
+                  }
+                  @if (isDriver() && open()) {
+                    <button mat-icon-button (click)="remove(p.id)" aria-label="Annulla partecipazione">
+                      <mat-icon svgIcon="person_remove" />
+                    </button>
+                  }
+                </div>
               </mat-list-item>
             }
           </mat-list>
@@ -211,6 +220,14 @@ import { STATUS_LABELS } from '../shared/labels';
           }
         }
 
+        <ng-template #star let-u>
+          @let fav = favoriteIds().has(u.id);
+          <button mat-icon-button class="star" (click)="toggleFavorite(u)" [attr.aria-pressed]="fav"
+                  [attr.aria-label]="(fav ? 'Togli dai preferiti ' : 'Aggiungi ai preferiti ') + u.firstName + ' ' + u.lastName">
+            <mat-icon [svgIcon]="fav ? 'star-fill' : 'star'" />
+          </button>
+        </ng-template>
+
         <ng-template #boarding>
           <mat-form-field class="full-width">
             <mat-label>Dove sali?</mat-label>
@@ -236,12 +253,15 @@ import { STATUS_LABELS } from '../shared/labels';
     .subtitle { font: var(--mat-sys-title-small); margin: 16px 0 4px; }
     .sep { margin: 24px 0 8px; }
     .danger { color: var(--mat-sys-error); }
+    .star { vertical-align: middle; color: var(--mat-sys-tertiary); }
+    .block .star mat-icon { margin: 0; color: inherit; }
   `,
 })
 export class TripDetailPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly session = inject(SessionStore);
   readonly id = input.required<string>();
 
   protected readonly labels = STATUS_LABELS;
@@ -265,8 +285,21 @@ export class TripDetailPage implements OnInit {
   protected readonly requests = computed(() => this.trip()?.participants.filter((p) => p.status === 'REQUESTED') ?? []);
   protected readonly activeInvitations = computed(() => this.trip()?.invitations?.filter((i) => i.status === 'PENDING') ?? []);
 
+  protected readonly favoriteIds = signal(new Set<string>());
+  protected readonly myId = computed(() => this.session.me()?.id);
+
   async ngOnInit(): Promise<void> {
     await this.load();
+    this.api.favorites().then((f) => this.favoriteIds.set(new Set(f.map((x) => x.id))), () => undefined);
+  }
+
+  async toggleFavorite(u: UserSummaryDto): Promise<void> {
+    const fav = this.favoriteIds().has(u.id);
+    const list = await this.run(
+      () => (fav ? this.api.removeFavorite(u.id) : this.api.addFavorite(u.id)),
+      fav ? 'Tolto dai preferiti' : `${u.firstName} è tra i tuoi preferiti`,
+    );
+    if (list) this.favoriteIds.set(new Set(list.map((x) => x.id)));
   }
 
   private async load(): Promise<void> {

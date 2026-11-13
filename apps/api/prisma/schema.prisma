@@ -194,6 +194,8 @@ model User {
   pushSubscriptions   PushSubscription[]
   emailVerification   EmailVerification?
   statEntries         UserStatEntry[]
+  favorites           Favorite[]         @relation("FavoriteOwner")
+  favoritedBy         Favorite[]         @relation("FavoriteTarget")
 
   @@index([lastName, firstName])
 }
@@ -380,6 +382,8 @@ model Trip {
   status             TripStatus      @default(SCHEDULED)
   cancelledAt        DateTime?
   closedAt           DateTime?
+  /// Avviso "nuovo viaggio di un preferito" già inviato (una sola volta per viaggio).
+  favoritesNotifiedAt DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
@@ -439,6 +443,20 @@ model Invitation {
 
   @@index([inviteeId, status])
   @@index([expiresAt])
+}
+
+/// Colleghi preferiti. Visibile solo a chi crea la lista: il collega non sa
+/// di essere tra i preferiti di qualcuno.
+model Favorite {
+  userId         String   @db.Uuid
+  favoriteUserId String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  user           User     @relation("FavoriteOwner", fields: [userId], references: [id], onDelete: Cascade)
+  favorite       User     @relation("FavoriteTarget", fields: [favoriteUserId], references: [id], onDelete: Cascade)
+
+  @@id([userId, favoriteUserId])
+  @@index([favoriteUserId])
 }
 
 // ---------------------------------------------------------------------------

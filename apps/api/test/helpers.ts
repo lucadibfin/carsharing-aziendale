@@ -76,7 +76,7 @@ export function resetSpies(ctx: TestContext): void {
 export async function resetDb(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(`TRUNCATE "ChatMessage", "ChatMute", "PushSubscription", "Invitation", "TripParticipant",
     "Trip", "TripStop", "TripSeries", "PolicyAcceptance", "ConsentEvent", "UserConsent", "RoleAssignment", "Session",
-    "LoginThrottle", "Setting", "EmailVerification", "TripStatFact", "UserStatEntry", "DistanceCache", "User" CASCADE`);
+    "LoginThrottle", "Setting", "EmailVerification", "TripStatFact", "UserStatEntry", "DistanceCache", "Favorite", "User" CASCADE`);
 }
 
 /** Client HTTP con cookie di sessione e token CSRF gestiti automaticamente. */

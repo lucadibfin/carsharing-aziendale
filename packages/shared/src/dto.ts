@@ -92,6 +92,10 @@ export interface UserSummaryDto {
   lastName: string;
 }
 
+export interface FavoriteDto extends UserSummaryDto {
+  siteName: string | null;
+}
+
 export interface TripStopDto {
   order: number;
   comuneIstat: string;

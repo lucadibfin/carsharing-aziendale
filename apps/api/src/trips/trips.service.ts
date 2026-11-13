@@ -11,6 +11,7 @@ import { AppException, Forbidden } from '../common/errors.js';
 import { Clock } from '../common/clock.js';
 import { PrismaService } from '../common/prisma.service.js';
 import { addDays, dateOnly, romeToUtc, todayInRome } from '../common/time.js';
+import { FavoritesService } from '../favorites/favorites.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -36,6 +37,7 @@ export class TripsService {
     private readonly notifications: NotificationsService,
     private readonly chatEvents: ChatMembershipEvents,
     private readonly stats: StatsService,
+    private readonly favorites: FavoritesService,
   ) {}
 
   async create(userId: string, input: CreateTripInput): Promise<TripDetailDto> {
@@ -84,6 +86,7 @@ export class TripsService {
       await this.stats.syncFact(created.id, tx);
       return created;
     });
+    await this.favorites.notifyNewTrip(trip.id);
     return this.detail(trip.id, userId);
   }
 
@@ -201,6 +204,7 @@ export class TripsService {
       await this.stats.syncFact(tripId, tx);
     });
     if (rejected.length) await this.notifications.notify(rejected, 'REQUEST_REJECTED', tripId);
+    if (visibility === 'PUBLIC') await this.favorites.notifyNewTrip(tripId);
     return this.detail(tripId, userId);
   }
 

@@ -8,6 +8,7 @@ import type {
   ConsentsInput,
   CreateTripInput,
   EmailStatusDto,
+  FavoriteDto,
   InvitationDto,
   InviteLinkDto,
   MeDto,
@@ -102,6 +103,11 @@ export class ApiService {
   sendChat = (tripId: string, body: { text?: string; quickCode?: string }) =>
     this.post<ChatMessageDto>(`/trips/${tripId}/chat/messages`, body);
   muteChat = (tripId: string, muted: boolean) => this.put<void>(`/trips/${tripId}/chat/mute`, { muted });
+
+  // preferiti
+  favorites = () => this.get<FavoriteDto[]>('/favorites');
+  addFavorite = (userId: string) => this.put<FavoriteDto[]>(`/favorites/${userId}`, {});
+  removeFavorite = (userId: string) => this.delete<FavoriteDto[]>(`/favorites/${userId}`);
 
   // statistiche
   myStats = () => this.get<PersonalStatsDto>('/stats/me');

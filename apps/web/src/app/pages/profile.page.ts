@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
-import { type ConsentsInput, FUEL_TYPE_LABELS, type FuelType, type ProfileDto } from '@fcs/shared';
+import { type ConsentsInput, type FavoriteDto, FUEL_TYPE_LABELS, type FuelType, type ProfileDto } from '@fcs/shared';
 import { ApiService } from '../core/api.service';
 import { PushService } from '../core/push.service';
 import { ReferenceStore } from '../core/reference.store';
@@ -88,6 +88,26 @@ import { EmailVerifyComponent } from '../shared/email-verify.component';
           </mat-card-content>
         </mat-card>
 
+        <h2 class="section-title">Colleghi preferiti</h2>
+        <mat-card appearance="outlined">
+          <mat-card-content class="stack">
+            @for (f of favorites(); track f.id) {
+              <div class="row">
+                <span class="grow">{{ f.firstName }} {{ f.lastName }} <span class="muted">{{ f.siteName }}</span></span>
+                <button mat-icon-button (click)="removeFavorite(f.id)" [attr.aria-label]="'Togli ' + f.firstName + ' ' + f.lastName + ' dai preferiti'">
+                  <mat-icon svgIcon="delete" />
+                </button>
+              </div>
+            } @empty {
+              <p class="muted">Nessun preferito. Aggiungi un collega con la stella <mat-icon svgIcon="star" class="inline" /> nel dettaglio di un viaggio fatto insieme.</p>
+            }
+            <p class="muted small">
+              Quando un preferito propone un viaggio pubblico per la tua sede che passa dal tuo comune ricevi un avviso,
+              se hai attivato le notifiche facoltative. Il collega non sa di essere tra i tuoi preferiti.
+            </p>
+          </mat-card-content>
+        </mat-card>
+
         <h2 class="section-title">Notifiche push</h2>
         <mat-card appearance="outlined">
           <mat-card-content class="stack">
@@ -125,6 +145,7 @@ import { EmailVerifyComponent } from '../shared/email-verify.component';
   styles: `
     .name { font: var(--mat-sys-title-large); }
     .links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .inline { width: 18px; height: 18px; vertical-align: text-bottom; }
     .small { font-size: 0.85em; }
   `,
 })
@@ -146,9 +167,12 @@ export class ProfilePage implements OnInit {
   protected fuelType: FuelType | null = null;
   protected consumption: number | null = null;
 
+  protected readonly favorites = signal<FavoriteDto[]>([]);
+
   async ngOnInit(): Promise<void> {
     await this.ref.loadSites();
     this.fill(await this.api.profile());
+    this.api.favorites().then((f) => this.favorites.set(f), () => undefined);
     await this.push.refresh().catch(() => undefined);
   }
 
@@ -189,6 +213,14 @@ export class ProfilePage implements OnInit {
   async setConsent(key: keyof ConsentsInput, value: boolean): Promise<void> {
     try {
       this.fill(await this.api.updateConsents({ [key]: value }));
+    } catch (e) {
+      this.toast.error(e);
+    }
+  }
+
+  async removeFavorite(userId: string): Promise<void> {
+    try {
+      this.favorites.set(await this.api.removeFavorite(userId));
     } catch (e) {
       this.toast.error(e);
     }
