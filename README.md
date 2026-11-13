@@ -12,13 +12,14 @@ PRIVACY.md       servizi esterni e flussi di dati
 ```
 
 ## Requisiti di sviluppo
-- Node.js ≥ 22.22
-- npm 11: `npx npm@11 install`. npm 10 ha un bug con i peer dependency dei workspace, e gli script di installazione consentiti sono elencati in `allowScripts`.
+- **Node.js 24 LTS** (include npm 11). Le versioni sono fissate in `package.json` (`engines`, `packageManager`) e in `.nvmrc`. Con nvm: `nvm install 24.18.1` e poi `nvm use 24.18.1`.
+- Con versioni diverse `npm install` si ferma subito con l'errore `EBADENGINE` (`.npmrc` → `engine-strict`). Node 22 non è supportato: il suo npm 10 va in errore sui workspace di questo progetto.
+- Gli script di installazione dei pacchetti sono consentiti solo per quelli elencati in `allowScripts`.
 - **Nessun Docker né PostgreSQL da installare**: in sviluppo e nei test si usa PostgreSQL embedded (`embedded-postgres`).
 
 ## Avvio in sviluppo
 ```powershell
-npx npm@11 install
+npm install
 copy apps\api\.env.example apps\api\.env   # poi generare chiavi e VAPID (istruzioni nel file)
 npm run db:start                            # terminale 1: PostgreSQL embedded su localhost:5433
 npm run db:migrate -w api                   # prima volta: migrazioni
@@ -27,6 +28,8 @@ npm run dev:api                             # terminale 2: API su http://127.0.0
 npm run dev:web                             # terminale 3: PWA su http://localhost:4200 (proxy verso l'API)
 ```
 Utenti di prova (provider mock, solo sviluppo): `admin` (admin globale), `mario.rossi`, `laura.bianchi`, `giuseppe.verdi`, `anna.neri`, `paolo.gialli`, `ex.dipendente` (non attivo). La password è in `apps/api/src/auth/mock-identity.provider.ts`. In produzione il provider mock è bloccato dalla validazione della configurazione.
+
+**Email in sviluppo**: con `MAIL_TRANSPORT=outbox` (default senza `SMTP_HOST`) le email non vengono spedite. Sono scritte come file JSON in `apps/api/.mail-outbox/`, e lì si trova il codice di verifica richiesto al primo accesso. In produzione è ammesso solo `smtp`.
 
 ## Test
 ```powershell
@@ -38,7 +41,11 @@ Logica critica coperta:
 - **permessi**;
 - **visibilità dei viaggi privati**: 404 agli estranei, assenza dalle ricerche;
 - **cancellazioni**: scadenza configurabile;
-- **gestione delle credenziali**: la password non compare mai in log, risposte ed errori; throttling applicato *prima* di contattare AD;
+- **gestione delle credenziali**:
+  - la password non compare mai in log, risposte ed errori;
+  - il throttling è applicato *prima* di contattare AD;
+  - il blocco è temporaneo (15 minuti, configurabile) e si toglie da solo;
+- **email per le notifiche**: verifica con codice, scadenza, tentativi e limiti di invio; nessun indirizzo né codice nei log;
 - **chat WebSocket**: origine verificata, isolamento delle stanze;
 - **disattivazione dei dipendenti usciti**.
 

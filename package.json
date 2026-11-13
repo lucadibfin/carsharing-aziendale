@@ -9,8 +9,10 @@
     "apps/*"
   ],
   "engines": {
-    "node": ">=22.22.3"
+    "node": "^24.15.0",
+    "npm": "^11.16.0"
   },
+  "packageManager": "npm@11.16.0",
   "scripts": {
     "build:shared": "npm run build -w @fcs/shared",
     "build": "npm run build:shared && npm run build -w api && npm run build -w web",
