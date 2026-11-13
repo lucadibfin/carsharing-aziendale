@@ -16,6 +16,7 @@ import { ReferenceStore } from '../core/reference.store';
       <input
         matInput
         [ngModel]="text()"
+        [ngModelOptions]="{ standalone: true }"
         (ngModelChange)="onInput($event)"
         [matAutocomplete]="auto"
         [required]="required()"

@@ -19,3 +19,5 @@ Thumbs.db
 # Client Prisma generato
 apps/api/src/generated/
 .mail-outbox/
+# Test end-to-end: DB, outbox, report e tracce
+e2e/.run/

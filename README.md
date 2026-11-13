@@ -7,6 +7,8 @@ Progressive Web App per il car sharing casa-lavoro tra colleghi delle sedi itali
 apps/api         NestJS 12 (ESM) + Prisma 7 + PostgreSQL + Socket.IO + pg-boss
 apps/web         Angular 22 (zoneless, standalone) + Angular Material + @angular/pwa
 packages/shared  schemi zod, enum e DTO condivisi tra API e frontend
+e2e              test end-to-end Playwright
+deploy/          file Docker NON mantenuti (vedi il README interno)
 docs/legal       BOZZE di informativa e termini d'uso (da validare dal DPO)
 PRIVACY.md       servizi esterni e flussi di dati
 ```
@@ -35,7 +37,22 @@ Utenti di prova (provider mock, solo sviluppo): `admin` (admin globale), `mario.
 ```powershell
 npm test                # shared + api (integrazione su PostgreSQL embedded usa-e-getta) + web
 npm test -w api         # solo API
+npm run e2e             # end-to-end con Playwright (circa 30 secondi)
 ```
+**Test end-to-end** (`e2e/`):
+- Coprono il flusso principale su un telefono emulato (Pixel 7):
+  1. login;
+  2. primo accesso, con verifica dell'email tramite codice (anche errato);
+  3. proposta di un viaggio privato;
+  4. link d'invito aperto da un collega non ancora registrato, poi suo login, primo accesso e accettazione;
+  5. chat in tempo reale tra i due, con un messaggio rapido.
+- Lo stack è isolato:
+  - PostgreSQL embedded usa-e-getta sulla porta 5440;
+  - API compilata sulla 3100, con chiavi casuali a ogni esecuzione;
+  - PWA sulla 4300.
+  Non tocca il database di sviluppo; i codici email si leggono dalla outbox `e2e/.run/mail-outbox`.
+- Usa Google Chrome già installato. In alternativa: `npx playwright install chromium` e `E2E_BROWSER_CHANNEL=chromium`.
+- In caso di errore, screenshot e trace sono in `e2e/.run/results` (`npx playwright show-trace …`).
 Logica critica coperta:
 - **posti**: niente overbooking anche con accettazioni concorrenti;
 - **permessi**;

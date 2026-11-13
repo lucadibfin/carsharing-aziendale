@@ -9,7 +9,7 @@ async function bootstrap() {
   try {
     process.loadEnvFile();
   } catch {
-    // in produzione le variabili arrivano dall'ambiente del container
+    // nessun .env nella cartella corrente: le variabili arrivano dall'ambiente del processo
   }
   const env = loadEnv();
   const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
