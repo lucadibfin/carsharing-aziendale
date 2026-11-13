@@ -2,8 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { NotFound } from '../common/errors.js';
 import { Clock } from '../common/clock.js';
 import { PrismaService } from '../common/prisma.service.js';
+import type { AbsenceReportOptionsDto } from '@fcs/shared';
 import type { ParticipantStatus, TripVisibility } from '../generated/prisma/client.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { type LoadedTrip, tripInclude } from './trip-loader.js';
+
+export type AbsenceCandidate = AbsenceReportOptionsDto['candidates'][number];
 
 /** Stati di partecipazione che danno diritto a vedere un viaggio privato. */
 const VIEWING_STATUSES: ParticipantStatus[] = ['REQUESTED', 'ACCEPTED', 'WAITLISTED', 'NOT_THERE'];
@@ -33,6 +37,7 @@ export class TripAccessPolicy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    private readonly settings: SettingsService,
   ) {}
 
   async load(tripId: string, userId: string): Promise<TripContext> {
@@ -91,6 +96,47 @@ export class TripAccessPolicy {
    */
   canSeePhoneOf(ctx: TripContext, targetPhoneVisibleConsent: boolean | undefined): boolean {
     return this.isConfirmedMember(ctx) && Boolean(targetPhoneVisibleConsent);
+  }
+
+  /**
+   * Segnalazioni di assenza: chi l'utente del contesto può segnalare. Regole:
+   * - viaggio con orario di arrivo passato da non più di closureWindowDays;
+   * - chi segnala: il conducente (non per viaggi annullati) o un partecipante
+   *   confermato (se il viaggio è chiuso, solo se era presente);
+   * - segnalabili: il partecipante assente alla chiusura; il partecipante che ha
+   *   annullato oltre la scadenza; il conducente, se non ha chiuso il viaggio
+   *   (possibile mancata presentazione) o lo ha annullato oltre la scadenza.
+   */
+  async absenceReportCandidates(ctx: TripContext): Promise<{ candidates: AbsenceCandidate[]; deadline: Date }> {
+    const { trip } = ctx;
+    const now = this.clock.now();
+    const s = await this.settings.get();
+    const deadline = new Date(trip.arrivalAt.getTime() + s.closureWindowDays * 86_400_000);
+    if (now < trip.arrivalAt || now > deadline) return { candidates: [], deadline };
+
+    const me = ctx.participant;
+    const cancelled = trip.status === 'CANCELLED';
+    const closed = trip.status === 'CLOSED';
+    const isReporter = ctx.isDriver ? !cancelled : me?.status === 'ACCEPTED' && (!closed || me.attended === true);
+    if (!isReporter) return { candidates: [], deadline };
+
+    const out: AbsenceCandidate[] = [];
+    const summary = (u: { id: string; firstName: string; lastName: string }) => ({ id: u.id, firstName: u.firstName, lastName: u.lastName });
+    if (!cancelled) {
+      for (const p of trip.participants) {
+        if (p.userId === ctx.userId) continue;
+        if (p.status === 'ACCEPTED' && closed && p.attended === false) out.push({ ...summary(p.user), why: 'NO_SHOW' });
+        if (p.status === 'CANCELLED' && p.lateCancel) out.push({ ...summary(p.user), why: 'LATE_CANCEL' });
+      }
+    }
+    if (!ctx.isDriver) {
+      const cancelDeadline = new Date(trip.arrivalAt.getTime() - s.cancellationDeadlineHours * 3600_000);
+      const lateCancelByDriver = cancelled && trip.cancelledAt !== null && trip.cancelledAt > cancelDeadline;
+      if (lateCancelByDriver || trip.status === 'SCHEDULED') {
+        out.push({ ...summary(trip.series.driver), why: lateCancelByDriver ? 'LATE_CANCEL' : 'DRIVER_NO_SHOW' });
+      }
+    }
+    return { candidates: out, deadline };
   }
 
   /** Accesso alla chat della serie: conducente o partecipante accettato di almeno una data non annullata. */

@@ -78,6 +78,19 @@ export const ChatMessageKind = {
 } as const;
 export type ChatMessageKind = (typeof ChatMessageKind)[keyof typeof ChatMessageKind];
 
+export const AbsenceReportStatus = {
+  OPEN: 'OPEN',
+  DISMISSED: 'DISMISSED',
+  ACKNOWLEDGED: 'ACKNOWLEDGED',
+} as const;
+export type AbsenceReportStatus = (typeof AbsenceReportStatus)[keyof typeof AbsenceReportStatus];
+
+export const ABSENCE_REPORT_STATUS_LABELS: Record<AbsenceReportStatus, string> = {
+  OPEN: 'Da esaminare',
+  DISMISSED: 'Archiviata',
+  ACKNOWLEDGED: 'Presa in carico',
+};
+
 export const PolicyType = {
   PRIVACY_NOTICE: 'PRIVACY_NOTICE',
   TERMS: 'TERMS',

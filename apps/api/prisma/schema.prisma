@@ -82,6 +82,15 @@ enum PolicyType {
   TERMS
 }
 
+enum AbsenceReportStatus {
+  /// In attesa di un admin.
+  OPEN
+  /// Esaminata, nessun seguito.
+  DISMISSED
+  /// Esaminata e presa in carico (eventuali azioni fuori dall'app, decise da una persona).
+  ACKNOWLEDGED
+}
+
 enum DistanceSource {
   /// Distanza stradale calcolata dal servizio di routing (OSRM self-hosted).
   ROUTED
@@ -196,6 +205,9 @@ model User {
   statEntries         UserStatEntry[]
   favorites           Favorite[]         @relation("FavoriteOwner")
   favoritedBy         Favorite[]         @relation("FavoriteTarget")
+  reportsMade         AbsenceReport[]    @relation("ReportReporter")
+  reportsReceived     AbsenceReport[]    @relation("ReportReported")
+  reportsHandled      AbsenceReport[]    @relation("ReportHandler")
 
   @@index([lastName, firstName])
 }
@@ -391,6 +403,7 @@ model Trip {
   participants       TripParticipant[]
   invitations        Invitation[]
   statFact           TripStatFact?
+  absenceReports     AbsenceReport[]
 
   @@unique([seriesId, date])
   @@index([siteId, date])
@@ -457,6 +470,38 @@ model Favorite {
 
   @@id([userId, favoriteUserId])
   @@index([favoriteUserId])
+}
+
+/// Segnalazione di mancata presentazione (o cancellazione oltre la scadenza).
+/// Non visibile agli altri utenti; gestita solo dagli admin, senza alcuna
+/// conseguenza automatica. Cancellata dopo absenceReportRetentionMonths.
+model AbsenceReport {
+  id              String              @id @default(uuid()) @db.Uuid
+  /// Null se il viaggio è stato cancellato (restano sede e data per la gestione).
+  tripId          String?             @db.Uuid
+  siteId          String              @db.Uuid
+  tripDate        DateTime            @db.Date
+  /// Null se chi ha segnalato ha cancellato l'account.
+  reporterId      String?             @db.Uuid
+  reportedId      String              @db.Uuid
+  /// Motivazione obbligatoria, cifrata.
+  reasonEnc       String
+  status          AbsenceReportStatus @default(OPEN)
+  /// Nota dell'admin sulla decisione, cifrata.
+  decisionNoteEnc String?
+  handledById     String?             @db.Uuid
+  handledAt       DateTime?
+  createdAt       DateTime            @default(now())
+
+  trip            Trip?               @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  reporter        User?               @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  reported        User                @relation("ReportReported", fields: [reportedId], references: [id], onDelete: Cascade)
+  handledBy       User?               @relation("ReportHandler", fields: [handledById], references: [id], onDelete: SetNull)
+
+  @@unique([tripId, reporterId, reportedId])
+  @@index([siteId, status])
+  @@index([reportedId])
+  @@index([createdAt])
 }
 
 // ---------------------------------------------------------------------------

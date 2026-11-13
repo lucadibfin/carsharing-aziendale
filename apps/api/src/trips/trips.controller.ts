@@ -2,6 +2,8 @@ import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nes
 import {
   closeTripSchema,
   type CloseTripInput,
+  createAbsenceReportSchema,
+  type CreateAbsenceReportInput,
   createInviteLinkSchema,
   type CreateInviteLinkInput,
   createTripSchema,
@@ -18,6 +20,7 @@ import {
 } from '@fcs/shared';
 import { CurrentUser } from '../auth/decorators.js';
 import type { SessionUser } from '../auth/session.service.js';
+import { AbsenceReportsService } from './absence-reports.service.js';
 import { InvitationsService } from './invitations.service.js';
 import { ParticipationService } from './participation.service.js';
 import { TripsService } from './trips.service.js';
@@ -28,6 +31,7 @@ export class TripsController {
     private readonly trips: TripsService,
     private readonly participation: ParticipationService,
     private readonly invitations: InvitationsService,
+    private readonly reports: AbsenceReportsService,
   ) {}
 
   @Post()
@@ -106,6 +110,21 @@ export class TripsController {
     @Body({ schema: closeTripSchema }) body: CloseTripInput,
   ) {
     return this.participation.close(tripId, u.userId, body.presentParticipantIds);
+  }
+
+  /** Chi posso segnalare per questo viaggio (lista vuota se nessuno o fuori termine). */
+  @Get(':id/absence-reports/options')
+  absenceOptions(@CurrentUser() u: SessionUser, @Param('id', { schema: id }) tripId: string) {
+    return this.reports.options(tripId, u.userId);
+  }
+
+  @Post(':id/absence-reports')
+  reportAbsence(
+    @CurrentUser() u: SessionUser,
+    @Param('id', { schema: id }) tripId: string,
+    @Body({ schema: createAbsenceReportSchema }) body: CreateAbsenceReportInput,
+  ) {
+    return this.reports.create(tripId, u.userId, body.reportedUserId, body.reason);
   }
 
   @Post(':id/invitations')

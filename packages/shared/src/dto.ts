@@ -1,5 +1,6 @@
 // Forme delle risposte dell'API (contratto tra backend e frontend).
 import type {
+  AbsenceReportStatus,
   ChatMessageKind,
   FuelType,
   InvitationScope,
@@ -167,6 +168,36 @@ export interface MyTripsDto {
   pendingInvitations: (InvitationDto & { trip: TripSummaryDto })[];
   pendingRequests: { tripId: string; count: number }[];
   awaitingClosure: TripSummaryDto[];
+  /** Viaggi passati (entro il termine di chiusura) di cui ero membro: per consultarli o inviare segnalazioni. */
+  recent: TripSummaryDto[];
+}
+
+/** Chi l'utente corrente può segnalare per un viaggio passato (visibile solo a lui). */
+export interface AbsenceReportOptionsDto {
+  candidates: (UserSummaryDto & { why: 'NO_SHOW' | 'LATE_CANCEL' | 'DRIVER_NO_SHOW' })[];
+  /** Utenti già segnalati dall'utente corrente per questo viaggio. */
+  alreadyReported: string[];
+  /** Fino a quando si può segnalare. */
+  deadline: string;
+}
+
+/** Segnalazione vista da un admin. Motivazione e nota solo nel dettaglio (accesso registrato nell'audit log). */
+export interface AdminAbsenceReportDto {
+  id: string;
+  tripId: string | null;
+  siteId: string;
+  siteName: string;
+  tripDate: string;
+  status: AbsenceReportStatus;
+  reported: UserSummaryDto;
+  /** null se chi ha segnalato ha cancellato l'account. */
+  reporter: UserSummaryDto | null;
+  /** Segnalazioni ricevute dalla stessa persona nel periodo di conservazione (contesto per la decisione). */
+  reportedTotal: number;
+  createdAt: string;
+  handledAt: string | null;
+  reason?: string;
+  decisionNote?: string | null;
 }
 
 export interface StatsPeriodDto {

@@ -147,6 +147,19 @@ export class TripsService {
       include: tripInclude,
       orderBy: { arrivalAt: 'desc' },
     });
+    const windowStart = new Date(now.getTime() - closureWindowDays * 86_400_000);
+    const recent = await this.prisma.trip.findMany({
+      where: {
+        arrivalAt: { lte: now, gte: windowStart },
+        OR: [
+          { series: { driverId: userId }, status: { not: 'SCHEDULED' } }, // quelli da chiudere sono già sopra
+          { participants: { some: { userId, status: 'ACCEPTED' } } },
+        ],
+      },
+      include: tripInclude,
+      orderBy: { arrivalAt: 'desc' },
+      take: 20,
+    });
     const invitations = await this.prisma.invitation.findMany({
       where: { inviteeId: userId, status: 'PENDING', expiresAt: { gt: now } },
       include: { trip: { include: tripInclude } },
@@ -157,6 +170,7 @@ export class TripsService {
       asDriver: asDriver.map((t) => this.mapper.summary(t, userId)),
       asParticipant: asParticipant.map((t) => this.mapper.summary(t, userId)),
       awaitingClosure: awaitingClosure.map((t) => this.mapper.summary(t, userId)),
+      recent: recent.map((t) => this.mapper.summary(t, userId)),
       pendingRequests: asDriver
         .map((t) => ({ tripId: t.id, count: t.participants.filter((p) => p.status === 'REQUESTED').length }))
         .filter((r) => r.count > 0),

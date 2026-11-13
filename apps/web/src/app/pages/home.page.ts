@@ -49,6 +49,12 @@ import { TripCardComponent } from '../shared/trip-card.component';
           @for (t of d.asParticipant; track t.id) { <app-trip-card [trip]="t" /> }
           @empty { <p class="empty">Non partecipi ancora a nessun viaggio. <a routerLink="/cerca">Cerca un passaggio</a>.</p> }
         </div>
+        @if (d.recent.length) {
+          <h2 class="section-title">Viaggi recenti</h2>
+          <div class="card-list">
+            @for (t of d.recent; track t.id) { <app-trip-card [trip]="t" /> }
+          </div>
+        }
       }
     </div>
   `,

@@ -2,6 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type {
+  AbsenceReportOptionsDto,
   ApiError,
   ChatMessageDto,
   ComuneDto,
@@ -85,6 +86,11 @@ export class ApiService {
   leaveTrip = (id: string) => this.post<{ lateCancel: boolean }>(`/trips/${id}/leave`);
   closeTrip = (id: string, presentParticipantIds: string[]) =>
     this.post<TripDetailDto>(`/trips/${id}/close`, { presentParticipantIds });
+
+  // segnalazioni di assenza
+  absenceReportOptions = (tripId: string) => this.get<AbsenceReportOptionsDto>(`/trips/${tripId}/absence-reports/options`);
+  reportAbsence = (tripId: string, reportedUserId: string, reason: string) =>
+    this.post<AbsenceReportOptionsDto>(`/trips/${tripId}/absence-reports`, { reportedUserId, reason });
 
   // inviti
   searchColleagues = (q: string) => this.get<(UserSummaryDto & { siteName: string | null })[]>('/users/search', { q });

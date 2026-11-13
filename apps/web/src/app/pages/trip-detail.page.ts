@@ -12,7 +12,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
-import type { TripDetailDto, TripVisibility, UserSummaryDto } from '@fcs/shared';
+import type { AbsenceReportOptionsDto, TripDetailDto, TripVisibility, UserSummaryDto } from '@fcs/shared';
 import { ApiService, errorCode } from '../core/api.service';
 import { SessionStore } from '../core/session.store';
 import { ToastService } from '../core/toast.service';
@@ -126,6 +126,40 @@ import { STATUS_LABELS } from '../shared/labels';
               </mat-list-item>
             }
           </mat-list>
+        }
+
+        <!-- ===== Segnalazioni di assenza (viaggio passato) ===== -->
+        @if (reportOptions(); as ro) {
+          @if (ro.candidates.length) {
+            <h2 class="section-title"><mat-icon svgIcon="flag" class="inline" /> Segnala un'assenza</h2>
+            <p class="muted small">
+              Puoi segnalare chi non si è presentato o ha annullato oltre la scadenza, entro il {{ ro.deadline | date: 'd/M/y' }}.
+              La segnalazione la leggono solo gli amministratori e non comporta alcuna sanzione automatica.
+            </p>
+            @for (c of ro.candidates; track c.id) {
+              <div class="report">
+                <div class="row">
+                  <span class="grow">{{ c.firstName }} {{ c.lastName }} <span class="muted">· {{ whyLabels[c.why] }}</span></span>
+                  @if (ro.alreadyReported.includes(c.id)) {
+                    <span class="chip">Segnalazione inviata</span>
+                  } @else if (reporting() !== c.id) {
+                    <button mat-stroked-button (click)="reporting.set(c.id); reason = ''">Segnala</button>
+                  }
+                </div>
+                @if (reporting() === c.id) {
+                  <mat-form-field class="full-width">
+                    <mat-label>Motivazione (obbligatoria)</mat-label>
+                    <textarea matInput [(ngModel)]="reason" rows="3" maxlength="1000"></textarea>
+                    <mat-hint>Descrivi i fatti, senza giudizi personali.</mat-hint>
+                  </mat-form-field>
+                  <div class="actions">
+                    <button mat-button (click)="reporting.set(null)">Annulla</button>
+                    <button mat-flat-button (click)="sendReport(c.id)" [disabled]="reason.trim().length < 10 || busy()">Invia</button>
+                  </div>
+                }
+              </div>
+            }
+          }
         }
 
         <!-- ===== Conducente ===== -->
@@ -254,6 +288,8 @@ import { STATUS_LABELS } from '../shared/labels';
     .sep { margin: 24px 0 8px; }
     .danger { color: var(--mat-sys-error); }
     .star { vertical-align: middle; color: var(--mat-sys-tertiary); }
+    .inline { width: 20px; height: 20px; vertical-align: text-bottom; }
+    .report { padding: 4px 0 8px; border-bottom: 1px solid var(--mat-sys-outline-variant); }
     .block .star mat-icon { margin: 0; color: inherit; }
   `,
 })
@@ -314,8 +350,31 @@ export class TripDetailPage implements OnInit {
     }
   }
 
+  protected readonly reportOptions = signal<AbsenceReportOptionsDto | null>(null);
+  protected readonly reporting = signal<string | null>(null);
+  protected reason = '';
+  protected readonly whyLabels: Record<AbsenceReportOptionsDto['candidates'][number]['why'], string> = {
+    NO_SHOW: 'assente alla partenza',
+    LATE_CANCEL: 'ha annullato oltre la scadenza',
+    DRIVER_NO_SHOW: 'conducente, viaggio non chiuso',
+  };
+
+  async sendReport(userId: string): Promise<void> {
+    const r = await this.run(
+      () => this.api.reportAbsence(this.id(), userId, this.reason.trim()),
+      'Segnalazione inviata agli amministratori',
+    );
+    if (r) {
+      this.reportOptions.set(r);
+      this.reporting.set(null);
+    }
+  }
+
   private set(t: TripDetailDto): void {
     this.trip.set(t);
+    if (t.status !== 'SCHEDULED') {
+      this.api.absenceReportOptions(t.id).then((o) => this.reportOptions.set(o), () => undefined);
+    }
     this.boardingComune ??= t.stops[0]?.comuneIstat ?? null;
     this.present.set(new Set(t.participants.filter((p) => p.status === 'ACCEPTED').map((p) => p.id)));
   }

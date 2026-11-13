@@ -138,6 +138,23 @@ export const closeTripSchema = z.object({
 });
 export type CloseTripInput = z.infer<typeof closeTripSchema>;
 
+// ---------- segnalazioni di assenza ----------
+export const createAbsenceReportSchema = z.object({
+  reportedUserId: id,
+  reason: z
+    .string()
+    .trim()
+    .min(10, 'Descrivi brevemente cosa è successo (almeno 10 caratteri)')
+    .max(1000),
+});
+export type CreateAbsenceReportInput = z.infer<typeof createAbsenceReportSchema>;
+
+export const decideAbsenceReportSchema = z.object({
+  status: z.enum(['DISMISSED', 'ACKNOWLEDGED']),
+  note: trimmed(1000).optional(),
+});
+export type DecideAbsenceReportInput = z.infer<typeof decideAbsenceReportSchema>;
+
 // ---------- inviti ----------
 export const inviteUserSchema = z.object({
   userId: id,
