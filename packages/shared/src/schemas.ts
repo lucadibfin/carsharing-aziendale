@@ -35,7 +35,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export const consentsSchema = z.object({
   phoneVisible: z.boolean(),
   discoverable: z.boolean(),
-  emailNotifications: z.boolean(),
+  optionalNotifications: z.boolean(),
 });
 export type ConsentsInput = z.infer<typeof consentsSchema>;
 

@@ -49,7 +49,7 @@ export class UsersService {
       consents: {
         phoneVisible: u.consent?.phoneVisible ?? false,
         discoverable: u.consent?.discoverable ?? false,
-        emailNotifications: u.consent?.emailNotifications ?? false,
+        optionalNotifications: u.consent?.optionalNotifications ?? false,
       },
       email: await this.email.status(userId),
     };

@@ -142,7 +142,7 @@ export class InvitationsService {
       where: { id: invitationId },
       data: { status: 'DECLINED', respondedAt: this.clock.now() },
     });
-    await this.notifications.notify([inv.series.driverId], 'INVITATION_DECLINED', inv.tripId ?? '');
+    await this.notifications.notify([inv.series.driverId], 'INVITATION_DECLINED', inv.tripId ?? undefined);
   }
 
   /** L'invitato accetta: occupa direttamente un posto (con lock, niente overbooking). */

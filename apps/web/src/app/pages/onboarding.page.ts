@@ -80,8 +80,8 @@ import { MarkdownPipe } from '../shared/markdown.pipe';
               <mat-slide-toggle [(ngModel)]="consents.discoverable">
                 Rendimi trovabile nella ricerca colleghi per ricevere inviti
               </mat-slide-toggle>
-              <mat-slide-toggle [(ngModel)]="consents.emailNotifications">
-                Inviami le notifiche anche via email
+              <mat-slide-toggle [(ngModel)]="consents.optionalNotifications">
+                Inviami anche le notifiche facoltative: promemoria prima della partenza, nuovi viaggi dei colleghi preferiti, riepiloghi
               </mat-slide-toggle>
             </div>
             <div class="actions"><button mat-flat-button matStepperNext>Continua</button></div>
@@ -136,7 +136,7 @@ export class OnboardingPage implements OnInit {
   protected readonly emailDone = computed(() => Boolean(this.emailStatus()?.email));
   protected termsAccepted = false;
   // Consensi: tutti disattivati di default (privacy by default).
-  protected consents = { phoneVisible: false, discoverable: false, emailNotifications: false };
+  protected consents = { phoneVisible: false, discoverable: false, optionalNotifications: false };
   protected siteId: string | null = null;
   protected comuneIstat: string | null = null;
 

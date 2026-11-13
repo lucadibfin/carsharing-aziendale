@@ -15,10 +15,22 @@ Documento tecnico da mantenere aggiornato a ogni modifica. **Regola:** nessun se
 | Servizio | Quando | Dati inviati | Dati NON inviati | Sede |
 |---|---|---|---|---|
 | **API di autenticazione aziendale** (Active Directory) | Al login; facoltativamente ogni notte per la verifica dei dipendenti usciti | Username e password (solo HTTPS, solo al login); username (verifica notturna, senza password) | Nient'altro | Infrastruttura aziendale |
-| **SMTP aziendale** | Codice di verifica quando l'utente inserisce o cambia l'email; notifiche email solo per chi ha dato il consenso | Indirizzo scelto dall'utente (aziendale o personale), codice di verifica a 6 cifre oppure testo generico ("hai una nuova richiesta…") | Nomi di altri utenti, testi della chat, dettagli del viaggio | Infrastruttura aziendale; per gli indirizzi personali il messaggio arriva anche al fornitore di posta scelto dall'utente |
+| **SMTP aziendale** | Codice di verifica quando l'utente inserisce o cambia l'email; notifiche **essenziali** sempre; notifiche **facoltative** solo con il consenso; **mai** la chat | Indirizzo scelto dall'utente (aziendale o personale), codice di verifica a 6 cifre oppure testo generico ("hai una nuova richiesta…") | Nomi di altri utenti, testi della chat, dettagli del viaggio | Infrastruttura aziendale; per gli indirizzi personali il messaggio arriva anche al fornitore di posta scelto dall'utente |
 | **Servizi push dei browser** (Google FCM per Chrome/Android, Apple per Safari/iOS, Mozilla per Firefox) | Notifiche push, solo per chi le attiva sul dispositivo | Payload **cifrato end-to-end** (RFC 8291) con un testo generico e un link interno; endpoint del dispositivo | Testi dei messaggi, nomi, dati personali | Dipende dal fornitore del browser: **da valutare con il DPO** (l'endpoint del dispositivo è un identificativo, il contenuto non è leggibile dal fornitore) |
 | **OSRM self-hosted** (Fase 2) | Calcolo delle distanze stradali | Coordinate pubbliche di comuni e sedi | Qualunque dato degli utenti | VM aziendale (estratto OpenStreetMap dell'Italia) |
 
+## Notifiche: categorie e canali
+La classificazione si trova in `apps/api/src/notifications/notifications.service.ts` (`NOTIFICATION_CATEGORY`), che è l'unico punto da modificare, ed è verificata da un test (`apps/api/test/email.spec.ts`). Le basi giuridiche sono nel par. 5-bis dell'informativa.
+
+| Categoria | Tipi | Push | Email | Consenso |
+|---|---|---|---|---|
+| Essenziale | `TRIP_CANCELLED`, `TRIP_RESCHEDULED`, `REQUEST_ACCEPTED`, `REQUEST_REJECTED`, `REMOVED_FROM_TRIP`, `INVITATION`, `ACCOUNT_DEACTIVATED` | sì, se attivata | sempre | no (6.1.b) |
+| Operativa | `JOIN_REQUEST`, `PARTICIPANT_LEFT`, `INVITATION_ACCEPTED`, `INVITATION_DECLINED`, `CHAT_MESSAGES` | sì, se attivata | mai | no (6.1.b) |
+| Facoltativa | `TRIP_REMINDER`, `FAVORITE_NEW_TRIP`, `DIGEST` | solo con consenso | solo con consenso | `optionalNotifications` (6.1.a) |
+
+- **Push.** L'attivazione avviene sempre per scelta dell'utente sul singolo dispositivo, tramite il permesso del browser.
+- **Testi.** Sono sempre generici, sia nelle push sia nelle email.
+- **Avviso di disattivazione.** `ACCOUNT_DEACTIVATED` è inviato subito, fuori dalla coda, prima di cancellare l'email e le sottoscrizioni push.
 ## Dati di riferimento pubblici inclusi nel repository
 - Elenco dei comuni ISTAT (`apps/api/prisma/data/comuni.csv`), generato dal file ufficiale ISTAT "Elenco comuni italiani".
 - Icone Material Symbols, licenza Apache 2.0 (`apps/web/public/icons/ms/LICENSE`).

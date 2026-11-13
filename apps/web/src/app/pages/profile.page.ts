@@ -76,8 +76,8 @@ import { EmailVerifyComponent } from '../shared/email-verify.component';
             <mat-slide-toggle [checked]="p.consents.discoverable" (change)="setConsent('discoverable', $event.checked)">
               Rendimi trovabile nella ricerca colleghi per gli inviti
             </mat-slide-toggle>
-            <mat-slide-toggle [checked]="p.consents.emailNotifications" (change)="setConsent('emailNotifications', $event.checked)">
-              Notifiche anche via email
+            <mat-slide-toggle [checked]="p.consents.optionalNotifications" (change)="setConsent('optionalNotifications', $event.checked)">
+              Notifiche facoltative (promemoria, nuovi viaggi dei preferiti, riepiloghi)
             </mat-slide-toggle>
             <p class="muted small">Puoi revocare ogni consenso in qualsiasi momento, senza alcuna conseguenza.</p>
             <a mat-button routerLink="/informativa">Leggi l'informativa privacy e i termini d'uso</a>
@@ -108,7 +108,7 @@ import { EmailVerifyComponent } from '../shared/email-verify.component';
                 <p class="muted">Hai bloccato le notifiche per questo sito. Puoi riattivarle dalle impostazioni del browser.</p>
               }
               @default {
-                <p class="muted">Questo browser non supporta le notifiche push. Puoi attivare le notifiche via email.</p>
+                <p class="muted">Questo browser non supporta le notifiche push. Le comunicazioni importanti sui tuoi viaggi ti arrivano comunque via email.</p>
               }
             }
           </mat-card-content>

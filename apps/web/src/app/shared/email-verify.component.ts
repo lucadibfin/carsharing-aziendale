@@ -43,7 +43,7 @@ import { ToastService } from '../core/toast.service';
         </div>
       } @else {
         <p class="muted small">
-          Può essere anche un indirizzo personale. Lo usiamo solo per le notifiche dell'app (mai per il login),
+          Può essere anche un indirizzo personale. Lo usiamo solo per le notifiche importanti dell'app, come un viaggio annullato o una richiesta accettata (mai per il login),
           non è visibile ai colleghi e puoi cambiarlo quando vuoi.
         </p>
         <form class="row" (ngSubmit)="send()">

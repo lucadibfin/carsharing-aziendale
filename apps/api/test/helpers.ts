@@ -149,7 +149,7 @@ export async function verifyEmail(ctx: TestContext, c: ApiClient, email: string)
 export async function onboardedUser(
   ctx: TestContext,
   username: string,
-  consents: Partial<{ phoneVisible: boolean; discoverable: boolean; emailNotifications: boolean }> = {},
+  consents: Partial<{ phoneVisible: boolean; discoverable: boolean; optionalNotifications: boolean }> = {},
 ): Promise<ApiClient> {
   const c = await new ApiClient(ctx.app).init();
   const login = await c.login(username);
@@ -158,7 +158,7 @@ export async function onboardedUser(
   const policies = (await c.get('/policies/current')).body as { id: string }[];
   const me = await c.post('/onboarding', {
     acceptedPolicyIds: policies.map((p) => p.id),
-    consents: { phoneVisible: false, discoverable: false, emailNotifications: false, ...consents },
+    consents: { phoneVisible: false, discoverable: false, optionalNotifications: false, ...consents },
     siteId: ctx.sites[0]!.id,
     comuneIstat: COMUNI.MONZA,
   });

@@ -35,6 +35,8 @@ export class UserLifecycleService {
 
   async deactivate(userId: string): Promise<void> {
     const now = this.clock.now();
+    // Avviso all'interessato PRIMA di cancellare email e sottoscrizioni push.
+    await this.notifications.notifyAccountDeactivated(userId);
     await this.prisma.user.update({
       where: { id: userId },
       // L'email serve solo alle notifiche: a un utente disattivato non si invia più nulla.
