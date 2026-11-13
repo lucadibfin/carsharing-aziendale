@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+.angular/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+# Dati locali di PostgreSQL embedded
+.pgdata/
+.pgdata-test/
+# OSRM: estratti OSM e grafi (pesanti, si rigenerano)
+infra/osrm/data/
+*.log
+.DS_Store
+Thumbs.db
+
+# Client Prisma generato
+apps/api/src/generated/

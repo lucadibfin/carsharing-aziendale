@@ -1,0 +1,442 @@
+// Schema dati dell'app di car sharing.
+// Privacy by design: nessun indirizzo di residenza, nessuna coordinata degli utenti.
+// I campi *Enc contengono dati cifrati a livello applicativo (AES-256-GCM).
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enum
+// ---------------------------------------------------------------------------
+
+enum Role {
+  SITE_ADMIN
+  GLOBAL_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DEACTIVATED
+  PENDING_DELETION
+}
+
+enum TripVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum TripStatus {
+  SCHEDULED
+  AWAITING_CLOSURE
+  CLOSED
+  CANCELLED
+}
+
+enum ParticipantStatus {
+  REQUESTED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  WAITLISTED
+  NOT_THERE
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+enum InvitationScope {
+  TRIP
+  SERIES
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  LPG
+  METHANE
+  HYBRID
+  ELECTRIC
+}
+
+enum ChatMessageKind {
+  TEXT
+  QUICK
+  SYSTEM
+}
+
+enum PolicyType {
+  PRIVACY_NOTICE
+  TERMS
+}
+
+// ---------------------------------------------------------------------------
+// Dati di riferimento (pubblici)
+// ---------------------------------------------------------------------------
+
+/// Comuni italiani (elenco ISTAT). Le coordinate sono del centroide/municipio,
+/// dato pubblico usato solo per il calcolo delle distanze tra comuni e sedi.
+model Comune {
+  istat     String  @id @db.Char(6)
+  name      String
+  province  String  @db.VarChar(2)
+  region    String
+  lat       Float?
+  lon       Float?
+  active    Boolean @default(true)
+
+  stops     TripStop[]
+
+  @@index([name])
+}
+
+/// Sede aziendale.
+model Site {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  address     String
+  comuneIstat String   @db.Char(6)
+  lat         Float?
+  lon         Float?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  users       User[]
+  roles       RoleAssignment[]
+  series      TripSeries[]
+}
+
+// ---------------------------------------------------------------------------
+// Utenti, ruoli, consensi
+// ---------------------------------------------------------------------------
+
+model User {
+  id                  String     @id @default(uuid()) @db.Uuid
+  /// Username AD normalizzato (minuscolo). Identificativo stabile dell'utente.
+  username            String     @unique
+  firstName           String
+  lastName            String
+  status              UserStatus @default(ACTIVE)
+  siteId              String?    @db.Uuid
+  comuneIstat         String?    @db.Char(6)
+  /// Telefono cifrato (facoltativo).
+  phoneEnc            String?
+  fuelType            FuelType?
+  consumptionPer100km Float?
+  /// Completamento dell'onboarding (informativa, termini e profilo minimo).
+  onboardedAt         DateTime?
+  lastLoginAt         DateTime?
+  lastVerifiedAt      DateTime?
+  deactivatedAt       DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  site                Site?      @relation(fields: [siteId], references: [id])
+  consent             UserConsent?
+  roles               RoleAssignment[]
+  sessions            Session[]
+  policyAcceptances   PolicyAcceptance[]
+  drivenSeries        TripSeries[]       @relation("SeriesDriver")
+  participations      TripParticipant[]
+  invitationsReceived Invitation[]       @relation("Invitee")
+  invitationsCreated  Invitation[]       @relation("InvitationCreator")
+  chatMessages        ChatMessage[]
+  chatMutes           ChatMute[]
+  pushSubscriptions   PushSubscription[]
+
+  @@index([lastName, firstName])
+}
+
+/// Consensi facoltativi: separati, non preselezionati, revocabili.
+/// Ogni modifica è anche registrata in ConsentEvent (storico).
+model UserConsent {
+  userId             String   @id @db.Uuid
+  phoneVisible       Boolean  @default(false)
+  discoverable       Boolean  @default(false)
+  emailNotifications Boolean  @default(false)
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Storico dei consensi (prova del consenso, art. 7 par. 1 GDPR).
+model ConsentEvent {
+  id        BigInt   @id @default(autoincrement())
+  userId    String   @db.Uuid
+  consent   String
+  granted   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model RoleAssignment {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  role      Role
+  /// Valorizzato solo per SITE_ADMIN.
+  siteId    String?  @db.Uuid
+  grantedBy String?  @db.Uuid
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site      Site?    @relation(fields: [siteId], references: [id])
+
+  @@unique([userId, role, siteId])
+}
+
+// ---------------------------------------------------------------------------
+// Autenticazione
+// ---------------------------------------------------------------------------
+
+/// Sessione applicativa lato server. Il cookie contiene un token casuale;
+/// nel DB si salva solo il suo hash SHA-256.
+model Session {
+  id                String   @id @default(uuid()) @db.Uuid
+  tokenHash         String   @unique
+  userId            String   @db.Uuid
+  createdAt         DateTime @default(now())
+  lastSeenAt        DateTime @default(now())
+  absoluteExpiresAt DateTime
+  idleExpiresAt     DateTime
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([absoluteExpiresAt])
+}
+
+/// Contatori anti brute-force. key = "u:" + HMAC(username) oppure "ip:" + HMAC(ip).
+/// Nessun dato in chiaro.
+model LoginThrottle {
+  key         String    @id
+  failures    Int       @default(0)
+  windowStart DateTime  @default(now())
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Informativa e termini (versionati)
+// ---------------------------------------------------------------------------
+
+model PolicyDocument {
+  id          String     @id @default(uuid()) @db.Uuid
+  type        PolicyType
+  version     Int
+  title       String
+  /// Testo in Markdown.
+  content     String
+  publishedAt DateTime   @default(now())
+  createdBy   String?    @db.Uuid
+
+  acceptances PolicyAcceptance[]
+
+  @@unique([type, version])
+}
+
+model PolicyAcceptance {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String         @db.Uuid
+  documentId String         @db.Uuid
+  acceptedAt DateTime       @default(now())
+
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   PolicyDocument @relation(fields: [documentId], references: [id])
+
+  @@unique([userId, documentId])
+}
+
+// ---------------------------------------------------------------------------
+// Viaggi
+// ---------------------------------------------------------------------------
+
+/// Serie di viaggi. Un viaggio singolo è una serie con una sola occorrenza.
+model TripSeries {
+  id           String         @id @default(uuid()) @db.Uuid
+  driverId     String         @db.Uuid
+  siteId       String         @db.Uuid
+  visibility   TripVisibility
+  /// Giorni ISO della settimana (1=lun..7=dom) per le serie ricorrenti; vuoto = viaggio singolo.
+  weekdays     Int[]          @default([])
+  startDate    DateTime       @db.Date
+  endDate      DateTime?      @db.Date
+  arrivalTime  String         @db.VarChar(5)
+  returnTime   String?        @db.VarChar(5)
+  seats        Int
+  meetingPoint String?
+  notes        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  driver       User           @relation("SeriesDriver", fields: [driverId], references: [id])
+  site         Site           @relation(fields: [siteId], references: [id])
+  stops        TripStop[]
+  trips        Trip[]
+  invitations  Invitation[]
+  chatMessages ChatMessage[]
+  chatMutes    ChatMute[]
+
+  @@index([driverId])
+}
+
+/// Comuni del percorso, ordinati (order 0 = comune di partenza).
+model TripStop {
+  id          String     @id @default(uuid()) @db.Uuid
+  seriesId    String     @db.Uuid
+  order       Int
+  comuneIstat String     @db.Char(6)
+
+  series      TripSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  comune      Comune     @relation(fields: [comuneIstat], references: [istat])
+
+  @@unique([seriesId, order])
+  @@index([comuneIstat])
+}
+
+/// Singola occorrenza (una data) di una serie.
+model Trip {
+  id                 String          @id @default(uuid()) @db.Uuid
+  seriesId           String          @db.Uuid
+  siteId             String          @db.Uuid
+  date               DateTime        @db.Date
+  arrivalTime        String          @db.VarChar(5)
+  returnTime         String?         @db.VarChar(5)
+  /// Istante (UTC) di arrivo in ufficio, calcolato da data + orario Europe/Rome.
+  arrivalAt          DateTime
+  seats              Int
+  /// Se valorizzato, prevale sulla visibilità della serie per questa data.
+  visibilityOverride TripVisibility?
+  status             TripStatus      @default(SCHEDULED)
+  cancelledAt        DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  series             TripSeries      @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  participants       TripParticipant[]
+  invitations        Invitation[]
+
+  @@unique([seriesId, date])
+  @@index([siteId, date])
+  @@index([status, arrivalAt])
+}
+
+model TripParticipant {
+  id             String            @id @default(uuid()) @db.Uuid
+  tripId         String            @db.Uuid
+  userId         String            @db.Uuid
+  status         ParticipantStatus
+  boardingComune String            @db.Char(6)
+  requestedAt    DateTime          @default(now())
+  decidedAt      DateTime?
+  cancelledAt    DateTime?
+  /// true se la cancellazione è avvenuta oltre la scadenza.
+  lateCancel     Boolean           @default(false)
+  attended       Boolean?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  trip           Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id            String           @id @default(uuid()) @db.Uuid
+  seriesId      String           @db.Uuid
+  /// Null se l'invito vale per l'intera serie.
+  tripId        String?          @db.Uuid
+  scope         InvitationScope
+  status        InvitationStatus @default(PENDING)
+  createdById   String           @db.Uuid
+  /// Invito diretto a un utente registrato.
+  inviteeId     String?          @db.Uuid
+  /// Invito tramite link: si salva solo l'hash del token.
+  tokenHash     String?          @unique
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  respondedAt   DateTime?
+  createdAt     DateTime         @default(now())
+
+  series        TripSeries       @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  trip          Trip?            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  createdBy     User             @relation("InvitationCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  invitee       User?            @relation("Invitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@index([inviteeId, status])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Chat e notifiche
+// ---------------------------------------------------------------------------
+
+/// Una chat per serie; i messaggi sono raggruppati per data del viaggio.
+model ChatMessage {
+  id        String          @id @default(uuid()) @db.Uuid
+  seriesId  String          @db.Uuid
+  tripDate  DateTime        @db.Date
+  senderId  String?         @db.Uuid
+  kind      ChatMessageKind
+  /// Testo cifrato (solo per kind = TEXT o SYSTEM).
+  bodyEnc   String?
+  quickCode String?
+  createdAt DateTime        @default(now())
+
+  series    TripSeries      @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  sender    User?           @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([seriesId, createdAt])
+  @@index([createdAt])
+}
+
+model ChatMute {
+  userId    String     @db.Uuid
+  seriesId  String     @db.Uuid
+  createdAt DateTime   @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series    TripSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@id([userId, seriesId])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Configurazione
+// ---------------------------------------------------------------------------
+
+/// Parametri configurabili dagli admin. value è validato da schema zod lato API.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?  @db.Uuid
+}

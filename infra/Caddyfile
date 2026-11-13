@@ -1,0 +1,73 @@
+# Reverse proxy e server statico della PWA.
+# APP_DOMAIN: dominio pubblico (es. carsharing.azienda.it).
+# TLS: con un dominio raggiungibile Caddy ottiene il certificato automaticamente;
+# su rete interna impostare TLS_CONFIG con il certificato aziendale, es.
+#   TLS_CONFIG="tls /certs/fullchain.pem /certs/privkey.pem"
+{
+	# Nessuna telemetria/admin API esposta
+	admin off
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+{$APP_DOMAIN} {
+	{$TLS_CONFIG}
+
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		# Solo risorse locali: nessun CDN, font o tracker di terze parti.
+		# style-src 'unsafe-inline' è richiesto dagli stili dei componenti Angular.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		-Server
+	}
+
+	# Log di accesso senza query string, cookie o header sensibili.
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					delete *
+				}
+				request>headers>Cookie delete
+				request>headers>X-Xsrf-Token delete
+				request>remote_ip ip_mask {
+					ipv4 16
+					ipv6 32
+				}
+				request>client_ip ip_mask {
+					ipv4 16
+					ipv6 32
+				}
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+	handle /socket.io/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		root * /srv
+		# Service worker e index sempre rivalidati; file con hash in cache a lungo.
+		@nocache path /index.html /ngsw-worker.js /ngsw.json /manifest.webmanifest /safety-worker.js /worker-basic.min.js
+		header @nocache Cache-Control "no-cache"
+		@hashed path_regexp \.[0-9A-Za-z_-]{8,}\.(js|css|woff2)$
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+}

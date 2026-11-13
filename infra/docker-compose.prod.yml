@@ -1,0 +1,98 @@
+# Produzione su VM aziendale (UE). Uso:
+#   cp infra/.env.prod.example infra/.env.prod   # e compilare i segreti
+#   docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.prod up -d --build
+name: fcs-carsharing
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fcs
+      POSTGRES_USER: fcs
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD obbligatoria}
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --data-checksums
+    volumes:
+      - db-data:/var/lib/postgresql
+    # Nessuna porta esposta: raggiungibile solo dalla rete interna di compose.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U fcs -d fcs']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+      target: migrate
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://fcs:${DB_PASSWORD}@db:5432/fcs
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend]
+    restart: 'no'
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+      target: runtime
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      TRUST_PROXY: 1
+      DATABASE_URL: postgresql://fcs:${DB_PASSWORD}@db:5432/fcs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [backend, frontend]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ['no-new-privileges:true']
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '10' }
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN obbligatorio}
+      TLS_CONFIG: ${TLS_CONFIG:-}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+      - ./certs:/certs:ro
+    depends_on: [api]
+    networks: [frontend]
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '10' }
+
+  # OSRM (Fase 2): routing open source self-hosted per le distanze comuni ↔ sedi.
+  # osrm:
+  #   image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+  #   command: osrm-routed --algorithm mld /data/italy-latest.osrm
+  #   volumes: ['./osrm/data:/data:ro']
+  #   networks: [backend]
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  backend:
+    internal: true
+  frontend:
