@@ -33,6 +33,8 @@ Utenti di prova (provider mock, solo sviluppo): `admin` (admin globale), `mario.
 
 **Email in sviluppo**: con `MAIL_TRANSPORT=outbox` (default senza `SMTP_HOST`) le email non vengono spedite. Sono scritte come file JSON in `apps/api/.mail-outbox/`, e lì si trova il codice di verifica richiesto al primo accesso. In produzione è ammesso solo `smtp`.
 
+**Test su iPhone e Android reali** (installazione PWA e push in HTTPS sulla rete locale): vedi [docs/test-dispositivi.md](docs/test-dispositivi.md), che contiene anche la checklist per ciascun dispositivo.
+
 ## Test
 ```powershell
 npm test                # shared + api (integrazione su PostgreSQL embedded usa-e-getta) + web

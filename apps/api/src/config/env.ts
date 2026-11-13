@@ -46,6 +46,8 @@ export const envSchema = z
     VAPID_PUBLIC_KEY: z.string().optional().default(''),
     VAPID_PRIVATE_KEY: z.string().optional().default(''),
     VAPID_SUBJECT: z.string().optional().default('mailto:noreply@example.invalid'),
+    /** Proxy aziendale (es. http://proxy.azienda:8080) per raggiungere i servizi push; vuoto = connessione diretta. */
+    PUSH_HTTPS_PROXY: z.string().optional().default(''),
 
     SMTP_HOST: z.string().optional().default(''),
     SMTP_PORT: z.coerce.number().int().default(587),

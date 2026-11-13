@@ -21,3 +21,5 @@ apps/api/src/generated/
 .mail-outbox/
 # Test end-to-end: DB, outbox, report e tracce
 e2e/.run/
+# Certificati locali per i test su dispositivi (mkcert): mai nel repository
+certs/

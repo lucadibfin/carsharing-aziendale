@@ -70,6 +70,8 @@ export class PushService {
           await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body, {
             TTL: 6 * 60 * 60,
             urgency: 'normal',
+            // Proxy HTTP(S) aziendale per raggiungere i servizi push dei browser, se necessario.
+            ...(this.env.PUSH_HTTPS_PROXY ? { proxy: this.env.PUSH_HTTPS_PROXY } : {}),
           });
         } catch (e) {
           const status = (e as { statusCode?: number }).statusCode;
