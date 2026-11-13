@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service.js';
 import { Clock } from '../common/clock.js';
 import { CryptoService } from '../common/crypto.service.js';
 import { PrismaService } from '../common/prisma.service.js';
@@ -25,6 +26,7 @@ export class UserLifecycleService {
     private readonly chatEvents: ChatMembershipEvents,
     private readonly clock: Clock,
     private readonly crypto: CryptoService,
+    private readonly audit: AuditService,
   ) {}
 
   async handleNoLongerActive(username: string): Promise<void> {
@@ -71,6 +73,13 @@ export class UserLifecycleService {
     await this.prisma.invitation.updateMany({
       where: { inviteeId: userId, status: 'PENDING' },
       data: { status: 'REVOKED', revokedAt: now },
+    });
+    await this.audit.record({
+      actorId: null,
+      action: 'USER_DEACTIVATED',
+      targetType: 'User',
+      targetId: userId,
+      meta: { cancelledTrips: driven.length, cancelledParticipations: parts.length },
     });
     this.logger.log({ user: this.crypto.hmac(userId).slice(0, 12), trips: driven.length }, 'utente disattivato');
   }

@@ -457,6 +457,29 @@ model PushSubscription {
 // Configurazione
 // ---------------------------------------------------------------------------
 
+/// Registro immutabile (append-only) degli accessi e delle azioni degli admin
+/// sui dati personali e delle operazioni rilevanti per il GDPR.
+/// UPDATE, DELETE e TRUNCATE sono vietati da trigger (migrazione audit_log).
+/// Catena di hash: hash = SHA-256(prevHash + contenuto canonico) → manomissioni rilevabili.
+/// Nessun dato personale in chiaro: solo identificativi (UUID) e codici di azione.
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  at         DateTime @default(now())
+  /// Utente che ha compiuto l'azione (null = sistema, es. job notturni).
+  actorId    String?  @db.Uuid
+  action     String
+  targetType String?
+  targetId   String?
+  /// Dettagli non personali (filtri usati, campi modificati, esiti).
+  meta       Json?
+  prevHash   String
+  hash       String   @unique
+
+  @@index([at])
+  @@index([actorId])
+  @@index([targetType, targetId])
+}
+
 /// Parametri configurabili dagli admin. value è validato da schema zod lato API.
 model Setting {
   key       String   @id
