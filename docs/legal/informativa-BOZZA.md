@@ -27,8 +27,10 @@ L'uso dell'app è **del tutto volontario**. Chi non la usa, smette di usarla o c
 | Chat | Messaggi scambiati nella chat di un viaggio | Inseriti dagli utenti |
 | Segnalazioni di assenza | Segnalazioni di mancata presentazione con motivazione | Inserite da altri partecipanti |
 | Preferenze | Colleghi preferiti, chat silenziate, consensi facoltativi | Inseriti dall'utente |
-| Notifiche | Indirizzo email aziendale (ricavato dallo username), sottoscrizioni alle notifiche push del browser | Dispositivo/configurazione |
+| Notifiche | Indirizzo email per le notifiche, aziendale o personale a tua scelta, verificato con un codice inviato all'indirizzo stesso; sottoscrizioni alle notifiche push del browser | Inseriti dall'utente / dispositivo |
 | Tecnici e di sicurezza | Data e ora degli accessi, registro delle azioni amministrative sui dati personali, identificativi pseudonimizzati nei log | Generati dal sistema |
+
+L'indirizzo email serve **solo** per le notifiche dell'app: non è usato per il login, non è visibile agli altri utenti né agli amministratori nelle funzioni di gestione, è conservato cifrato e puoi cambiarlo in qualsiasi momento dal profilo (ogni nuovo indirizzo va confermato con un codice).
 
 **Non sono trattati**: password (vedi par. 9), indirizzo di residenza, posizione GPS o geolocalizzazione in tempo reale, categorie particolari di dati (art. 9 GDPR).
 
@@ -42,6 +44,8 @@ L'uso dell'app è **del tutto volontario**. Chi non la usa, smette di usarla o c
 | e) Sicurezza del servizio, prevenzione di abusi e degli accessi non autorizzati, audit delle azioni amministrative | Legittimo interesse del Titolare e obbligo di sicurezza (art. 6.1.f e art. 32) |
 | f) Gestione delle segnalazioni di assenza da parte degli amministratori, senza sanzioni automatiche | Legittimo interesse al buon funzionamento del servizio tra colleghi (art. 6.1.f) |
 
+[NOTA PER IL DPO: l'email è richiesta al primo accesso e verificata con codice; l'invio delle notifiche via email resta però subordinato al consenso b). Valutare se (1) rendere l'email facoltativa e chiederla solo a chi attiva le notifiche email, oppure (2) considerare l'email un canale delle notifiche essenziali del servizio (finalità a) e mantenere il consenso solo per le notifiche non essenziali. L'app oggi implementa: email obbligatoria e invii solo con il consenso.]
+
 [NOTA PER IL DPO: in ambito lavorativo il consenso è usato **solo** per funzioni realmente facoltative e prive di conseguenze, in linea con le Linee guida EDPB 05/2020. Valutare la base giuridica della finalità d) rispetto agli obblighi PSCL applicabili all'azienda.]
 
 ## 6. Destinatari
@@ -53,7 +57,7 @@ L'uso dell'app è **del tutto volontario**. Chi non la usa, smette di usarla o c
 - **Mobility Manager**: riceve **solo dati aggregati e anonimi**.
 - **Fornitori**:
   - [DA COMPILARE: gestore dell'infrastruttura/VM aziendale] in qualità di responsabile del trattamento (art. 28);
-  - il servizio di posta aziendale.
+  - il servizio di posta aziendale (SMTP), che recapita i codici di verifica e le notifiche email. Se scegli un indirizzo personale, il messaggio è consegnato anche al tuo fornitore di posta.
 - **Servizi di notifica push dei browser** (es. Google, Apple, Mozilla), che ricevono solo un messaggio generico privo di contenuti personali (vedi PRIVACY.md).
 
 I dati non sono diffusi, non sono ceduti a terzi per fini commerciali e **non sono trasferiti fuori dall'Unione Europea** [DA VERIFICARE per i servizi push dei browser: il contenuto inviato non contiene dati personali, ma l'endpoint del dispositivo può essere considerato un identificativo].
@@ -62,6 +66,8 @@ I dati non sono diffusi, non sono ceduti a terzi per fini commerciali e **non so
 | Dato | Conservazione (valori predefiniti, configurabili) |
 |---|---|
 | Profilo e consensi | Fino alla cancellazione dell'account o alla cessazione del rapporto di lavoro |
+| Email per le notifiche | Fino alla sostituzione con un nuovo indirizzo verificato, alla cancellazione dell'account o alla disattivazione per cessazione del rapporto (cancellata subito) |
+| Verifiche email non completate (indirizzo in attesa di conferma) | Al massimo 24 ore; il codice è conservato solo in forma non reversibile |
 | Messaggi della chat | 30 giorni dall'invio |
 | Segnalazioni di assenza | 12 mesi |
 | Viaggi conclusi (dati identificativi) | [DA COMPILARE, proposta: 12 mesi]; dopo restano solo statistiche anonime |
@@ -75,7 +81,7 @@ Alla cancellazione dell'account o all'uscita dall'azienda i dati personali sono 
 ## 8. Diritti dell'interessato
 Puoi esercitare in qualsiasi momento i diritti degli artt. 15-22 GDPR: accesso, rettifica, cancellazione, limitazione, portabilità, opposizione e revoca del consenso, senza pregiudizio per la liceità del trattamento già svolto. Molti diritti sono esercitabili **direttamente dall'app** (sezione *Profilo → Privacy*):
 - visualizzazione ed esportazione di tutti i tuoi dati in formato JSON;
-- modifica del profilo;
+- modifica del profilo, incluso il cambio dell'email per le notifiche;
 - revoca dei consensi facoltativi;
 - cancellazione dell'account.
 

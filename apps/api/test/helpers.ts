@@ -8,6 +8,7 @@ import { Clock } from '../src/common/clock.js';
 import { PrismaService } from '../src/common/prisma.service.js';
 import { loadEnv } from '../src/config/env.js';
 import { NotificationsService } from '../src/notifications/notifications.service.js';
+import { MailService, type MailMessage } from '../src/notifications/mail.service.js';
 import { PushService } from '../src/notifications/push.service.js';
 import { configureApp } from '../src/security.js';
 import { MOCK_PASSWORD } from '../src/auth/mock-identity.provider.js';
@@ -24,6 +25,7 @@ export const TEST_ENV: Record<string, string> = {
   VAPID_PUBLIC_KEY: '',
   VAPID_PRIVATE_KEY: '',
   SMTP_HOST: '',
+  MAIL_TRANSPORT: 'disabled',
   LOG_LEVEL: 'info',
 };
 
@@ -72,7 +74,7 @@ export function resetSpies(ctx: TestContext): void {
 export async function resetDb(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(`TRUNCATE "ChatMessage", "ChatMute", "PushSubscription", "Invitation", "TripParticipant",
     "Trip", "TripStop", "TripSeries", "PolicyAcceptance", "ConsentEvent", "UserConsent", "RoleAssignment", "Session",
-    "LoginThrottle", "Setting", "User" CASCADE`);
+    "LoginThrottle", "Setting", "EmailVerification", "User" CASCADE`);
 }
 
 /** Client HTTP con cookie di sessione e token CSRF gestiti automaticamente. */
@@ -121,7 +123,29 @@ export const COMUNI = {
   BERGAMO: '016024',
 };
 
-/** Login + onboarding completo (informativa, termini, sede, comune). */
+/** Spy sull'invio effettivo delle email (il trasporto nei test è 'disabled'). */
+export function mailSpy(ctx: TestContext) {
+  return vi.spyOn(ctx.app.get(MailService), 'deliver');
+}
+
+/** Estrae il codice di verifica dall'ultima email inviata a 	o. */
+export function lastCodeFor(spy: ReturnType<typeof mailSpy>, to: string): string {
+  const msg = spy.mock.calls.map((c) => c[0] as MailMessage).filter((m) => m.to === to).at(-1);
+  const code = msg?.text.match(/\b(\d{6})\b/)?.[1];
+  if (!code) throw new Error('nessun codice inviato a ' + to);
+  return code;
+}
+
+/** Richiede e conferma il codice per l'email delle notifiche. */
+export async function verifyEmail(ctx: TestContext, c: ApiClient, email: string): Promise<void> {
+  const spy = mailSpy(ctx);
+  const req = await c.post('/profile/email/code', { email });
+  if (req.status !== 200) throw new Error(`richiesta codice fallita: ${req.status} ${JSON.stringify(req.body)}`);
+  const res = await c.post('/profile/email/confirm', { code: lastCodeFor(spy, email) });
+  if (res.status !== 200) throw new Error(`conferma email fallita: ${res.status} ${JSON.stringify(res.body)}`);
+}
+
+/** Login + onboarding completo (email verificata, informativa, termini, sede, comune). */
 export async function onboardedUser(
   ctx: TestContext,
   username: string,
@@ -130,6 +154,7 @@ export async function onboardedUser(
   const c = await new ApiClient(ctx.app).init();
   const login = await c.login(username);
   if (login.status !== 204) throw new Error(`login ${username} fallito: ${login.status}`);
+  await verifyEmail(ctx, c, `${username}@example.test`);
   const policies = (await c.get('/policies/current')).body as { id: string }[];
   const me = await c.post('/onboarding', {
     acceptedPolicyIds: policies.map((p) => p.id),

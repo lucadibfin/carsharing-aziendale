@@ -47,11 +47,11 @@ export class OnboardingGuard implements CanActivate {
     if (this.reflector.getAllAndOverride<boolean>(ALLOW_DURING_ONBOARDING, targets)) return true;
     const req = ctx.switchToHttp().getRequest<AuthedRequest>();
     const userId = req.auth!.userId;
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { onboardedAt: true } });
-    if (!user?.onboardedAt || (await this.policies.pendingFor(userId)).length > 0) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { onboardedAt: true, emailVerifiedAt: true } });
+    if (!user?.onboardedAt || !user.emailVerifiedAt || (await this.policies.pendingFor(userId)).length > 0) {
       throw new AppException(
         'ONBOARDING_REQUIRED',
-        'Prima di continuare devi prendere visione dell’informativa e accettare i termini d’uso',
+        'Prima di continuare devi completare il primo accesso (informativa, termini ed email per le notifiche)',
         HttpStatus.FORBIDDEN,
       );
     }

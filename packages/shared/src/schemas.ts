@@ -55,6 +55,27 @@ export const onboardingSchema = z.object({
 });
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
 
+// ---------- email per le notifiche ----------
+export const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(254, 'Indirizzo email troppo lungo')
+  .pipe(z.email('Indirizzo email non valido'));
+
+/** Richiede l'invio di un codice di verifica al nuovo indirizzo. */
+export const requestEmailCodeSchema = z.object({ email: emailSchema });
+export type RequestEmailCodeInput = z.infer<typeof requestEmailCodeSchema>;
+
+export const EMAIL_CODE_LENGTH = 6;
+export const confirmEmailCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(new RegExp(`^\\d{${EMAIL_CODE_LENGTH}}$`), `Il codice è di ${EMAIL_CODE_LENGTH} cifre`),
+});
+export type ConfirmEmailCodeInput = z.infer<typeof confirmEmailCodeSchema>;
+
 // ---------- profilo ----------
 export const phoneSchema = z
   .string()

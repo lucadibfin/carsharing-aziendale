@@ -43,16 +43,20 @@ try {
   await client.query(`UPDATE "Comune" SET active = false WHERE NOT (istat = ANY($1))`, [codes]);
   console.log(`Comuni: ${lines.length}`);
 
-  // --- Testi legali v1 (solo se assenti) ---
+  // --- Testi legali v1 ---
+  // In produzione si inseriscono solo se assenti (una versione pubblicata non cambia mai:
+  // le modifiche diventano una nuova versione). In sviluppo la bozza v1 si riallinea ai file.
   const docs = [
     ['PRIVACY_NOTICE', 'Informativa privacy', 'informativa-BOZZA.md'],
     ['TERMS', 'Termini d’uso', 'termini-BOZZA.md'],
   ];
+  const onConflict =
+    process.env.NODE_ENV === 'production' ? 'DO NOTHING' : 'DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content';
   for (const [type, title, file] of docs) {
     const content = readFileSync(resolve(import.meta.dirname, '../../../docs/legal', file), 'utf8');
     await client.query(
       `INSERT INTO "PolicyDocument" (id, type, version, title, content)
-       VALUES (gen_random_uuid(), $1, 1, $2, $3) ON CONFLICT (type, version) DO NOTHING`,
+       VALUES (gen_random_uuid(), $1, 1, $2, $3) ON CONFLICT (type, version) ${onConflict}`,
       [type, title, content],
     );
   }

@@ -1,39 +1,87 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
+import { resolve } from 'node:path';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 
-/** Email via SMTP aziendale. Senza SMTP_HOST l'invio è disattivato. */
+export class MailDeliveryError extends Error {
+  override readonly name = 'MailDeliveryError';
+}
+
+export interface MailMessage {
+  to: string;
+  subject: string;
+  text: string;
+}
+
+/**
+ * Invio email. Trasporti (MAIL_TRANSPORT):
+ * - smtp: SMTP aziendale (unico ammesso in produzione);
+ * - outbox: solo sviluppo/e2e, le email vengono scritte come file JSON in
+ *   MAIL_OUTBOX_DIR invece di essere spedite;
+ * - disabled: nessun invio (test automatici).
+ * Gli indirizzi non compaiono mai nei log.
+ */
 @Injectable()
 export class MailService {
   private readonly logger = new Logger('Mail');
-  private readonly transport: Transporter | null;
+  private readonly smtp: Transporter | null;
+  private readonly outboxDir: string;
 
   constructor(@Inject(ENV) private readonly env: Env) {
-    this.transport = env.SMTP_HOST
-      ? nodemailer.createTransport({
-          host: env.SMTP_HOST,
-          port: env.SMTP_PORT,
-          secure: env.SMTP_SECURE,
-          requireTLS: env.NODE_ENV === 'production',
-          auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } : undefined,
-        })
-      : null;
+    this.smtp =
+      env.MAIL_TRANSPORT === 'smtp'
+        ? nodemailer.createTransport({
+            host: env.SMTP_HOST,
+            port: env.SMTP_PORT,
+            secure: env.SMTP_SECURE,
+            requireTLS: env.NODE_ENV === 'production',
+            auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } : undefined,
+          })
+        : null;
+    this.outboxDir = resolve(env.MAIL_OUTBOX_DIR);
   }
 
-  /** Indirizzo aziendale derivato dallo username (l'API di identità non fornisce l'email). */
-  addressFor(username: string): string {
-    const local = username.includes('@') ? username.split('@')[0] : username.split('\\').pop();
-    return `${local}@${this.env.MAIL_DOMAIN}`;
+  get enabled(): boolean {
+    return this.env.MAIL_TRANSPORT !== 'disabled';
   }
 
-  async send(username: string, subject: string, text: string): Promise<void> {
-    if (!this.transport) return;
+  /** Invia e segnala l'errore al chiamante (es. codice di verifica: l'utente deve saperlo). */
+  async send(msg: MailMessage): Promise<void> {
     try {
-      await this.transport.sendMail({ from: this.env.MAIL_FROM, to: this.addressFor(username), subject, text });
+      await this.deliver(msg);
     } catch (e) {
-      // Nessun indirizzo nei log.
       this.logger.warn({ errName: e instanceof Error ? e.name : 'unknown' }, 'invio email non riuscito');
+      throw new MailDeliveryError('invio non riuscito');
+    }
+  }
+
+  /** Invio "best effort" per le notifiche: un errore non deve bloccare il resto. */
+  async trySend(msg: MailMessage): Promise<void> {
+    try {
+      await this.send(msg);
+    } catch {
+      /* già registrato */
+    }
+  }
+
+  /** Separato per poterlo sostituire nei test. */
+  async deliver(msg: MailMessage): Promise<void> {
+    switch (this.env.MAIL_TRANSPORT) {
+      case 'smtp':
+        await this.smtp!.sendMail({ from: this.env.MAIL_FROM, to: msg.to, subject: msg.subject, text: msg.text });
+        return;
+      case 'outbox': {
+        await mkdir(this.outboxDir, { recursive: true });
+        const name = `${Date.now()}-${randomBytes(4).toString('hex')}.json`;
+        await writeFile(resolve(this.outboxDir, name), JSON.stringify({ date: new Date().toISOString(), ...msg }, null, 2));
+        this.logger.log({ file: name }, 'email scritta nella outbox di sviluppo');
+        return;
+      }
+      case 'disabled':
+        return;
     }
   }
 }

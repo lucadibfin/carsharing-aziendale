@@ -35,6 +35,20 @@ export interface MeDto {
   onboardingRequired: boolean;
   /** Documenti (nuove versioni) ancora da accettare. */
   pendingPolicyIds: string[];
+  /** true se l'utente ha un indirizzo email verificato (richiesto per completare il primo accesso). */
+  emailVerified: boolean;
+}
+
+/** Stato dell'email per le notifiche (visibile solo all'interessato). */
+export interface EmailStatusDto {
+  /** Indirizzo verificato in uso. */
+  email: string | null;
+  verifiedAt: string | null;
+  /** Indirizzo in attesa di verifica (quello attuale resta valido fino alla conferma). */
+  pendingEmail: string | null;
+  pendingExpiresAt: string | null;
+  /** Da quando si può chiedere un nuovo codice. */
+  resendAvailableAt: string | null;
 }
 
 export interface ProfileDto {
@@ -47,6 +61,7 @@ export interface ProfileDto {
   fuelType: FuelType | null;
   consumptionPer100km: number | null;
   consents: ConsentsInput;
+  email: EmailStatusDto;
 }
 
 export interface PolicyDto {

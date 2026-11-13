@@ -7,6 +7,7 @@ import type {
   ComuneDto,
   ConsentsInput,
   CreateTripInput,
+  EmailStatusDto,
   InvitationDto,
   InviteLinkDto,
   MeDto,
@@ -58,6 +59,10 @@ export class ApiService {
   profile = () => this.get<ProfileDto>('/profile');
   updateProfile = (input: UpdateProfileInput) => this.patch<ProfileDto>('/profile', input);
   updateConsents = (input: Partial<ConsentsInput>) => this.patch<ProfileDto>('/profile/consents', input);
+  emailStatus = () => this.get<EmailStatusDto>('/profile/email');
+  requestEmailCode = (email: string) => this.post<EmailStatusDto>('/profile/email/code', { email });
+  confirmEmail = (code: string) => this.post<EmailStatusDto>('/profile/email/confirm', { code });
+  cancelPendingEmail = () => this.delete<EmailStatusDto>('/profile/email/pending');
 
   // riferimenti
   sites = () => this.get<SiteDto[]>('/sites');

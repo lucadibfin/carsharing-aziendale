@@ -1,7 +1,11 @@
-import { Body, Controller, Get, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Patch, Post } from '@nestjs/common';
 import {
   acceptPoliciesSchema,
   type AcceptPoliciesInput,
+  confirmEmailCodeSchema,
+  type ConfirmEmailCodeInput,
+  requestEmailCodeSchema,
+  type RequestEmailCodeInput,
   onboardingSchema,
   type OnboardingInput,
   updateConsentsSchema,
@@ -12,6 +16,7 @@ import {
 import { AllowDuringOnboarding, CurrentUser, Public } from '../auth/decorators.js';
 import type { SessionUser } from '../auth/session.service.js';
 import { PoliciesService } from '../policies/policies.service.js';
+import { EmailVerificationService } from './email-verification.service.js';
 import { UsersService } from './users.service.js';
 
 @Controller()
@@ -19,6 +24,7 @@ export class UsersController {
   constructor(
     private readonly users: UsersService,
     private readonly policies: PoliciesService,
+    private readonly email: EmailVerificationService,
   ) {}
 
   @AllowDuringOnboarding()
@@ -60,5 +66,35 @@ export class UsersController {
   @Patch('profile/consents')
   updateConsents(@CurrentUser() u: SessionUser, @Body({ schema: updateConsentsSchema }) body: UpdateConsentsInput) {
     return this.users.updateConsents(u.userId, body);
+  }
+
+  // ---------- email per le notifiche (consentito anche durante il primo accesso) ----------
+
+  @AllowDuringOnboarding()
+  @Get('profile/email')
+  emailStatus(@CurrentUser() u: SessionUser) {
+    return this.email.status(u.userId);
+  }
+
+  /** Invia un codice di verifica al nuovo indirizzo. */
+  @AllowDuringOnboarding()
+  @Post('profile/email/code')
+  @HttpCode(200)
+  requestEmailCode(@CurrentUser() u: SessionUser, @Body({ schema: requestEmailCodeSchema }) body: RequestEmailCodeInput) {
+    return this.email.requestCode(u.userId, body.email);
+  }
+
+  @AllowDuringOnboarding()
+  @Post('profile/email/confirm')
+  @HttpCode(200)
+  confirmEmail(@CurrentUser() u: SessionUser, @Body({ schema: confirmEmailCodeSchema }) body: ConfirmEmailCodeInput) {
+    return this.email.confirm(u.userId, body.code);
+  }
+
+  /** Annulla un cambio di indirizzo non ancora confermato. */
+  @AllowDuringOnboarding()
+  @Delete('profile/email/pending')
+  cancelPendingEmail(@CurrentUser() u: SessionUser) {
+    return this.email.cancelPending(u.userId);
   }
 }

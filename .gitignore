@@ -17,3 +17,4 @@ Thumbs.db
 
 # Client Prisma generato
 apps/api/src/generated/
+.mail-outbox/

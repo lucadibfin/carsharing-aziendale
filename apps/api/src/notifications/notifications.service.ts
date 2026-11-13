@@ -1,4 +1,5 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
+import { CryptoService } from '../common/crypto.service.js';
 import { PrismaService } from '../common/prisma.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { JobQueue } from '../jobs/job-queue.js';
@@ -64,6 +65,7 @@ export class NotificationsService implements OnModuleInit {
     private readonly mail: MailService,
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
+    private readonly crypto: CryptoService,
   ) {}
 
   onModuleInit(): void {
@@ -102,14 +104,18 @@ export class NotificationsService implements OnModuleInit {
   private async deliver(job: NotifyJob): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: job.userId },
-      select: { username: true, status: true, consent: { select: { emailNotifications: true } } },
+      select: { status: true, emailEnc: true, emailVerifiedAt: true, consent: { select: { emailNotifications: true } } },
     });
     if (!user || user.status !== 'ACTIVE') return;
     const t = TEXTS[job.type];
     const url = `/viaggi/${job.tripId}`;
     await this.push.sendToUser(job.userId, { ...t, url, tag: `trip:${job.tripId}` });
-    if (EMAIL_TYPES.has(job.type) && user.consent?.emailNotifications) {
-      await this.mail.send(user.username, `Car Sharing – ${t.title}`, `${t.body}\n\nApri l'app per i dettagli.`);
+    if (EMAIL_TYPES.has(job.type) && user.consent?.emailNotifications && user.emailVerifiedAt && user.emailEnc) {
+      await this.mail.trySend({
+        to: this.crypto.decrypt(user.emailEnc),
+        subject: `Car Sharing – ${t.title}`,
+        text: `${t.body}\n\nApri l'app per i dettagli.`,
+      });
     }
   }
 

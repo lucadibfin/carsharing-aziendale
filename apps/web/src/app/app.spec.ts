@@ -22,12 +22,12 @@ describe('App shell', () => {
 
     session.me.set({
       id: 'u1', firstName: 'Mario', lastName: 'Rossi', siteId: 's', comuneIstat: '015146', roles: [],
-      onboardingRequired: true, pendingPolicyIds: ['p'],
+      onboardingRequired: true, pendingPolicyIds: ['p'], emailVerified: false,
     });
     await fixture.whenStable();
     expect((fixture.nativeElement as HTMLElement).querySelector('nav')).toBeNull();
 
-    session.me.set({ ...session.me()!, onboardingRequired: false, pendingPolicyIds: [] });
+    session.me.set({ ...session.me()!, onboardingRequired: false, pendingPolicyIds: [], emailVerified: true });
     await fixture.whenStable();
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('nav a').length).toBe(4);
   });

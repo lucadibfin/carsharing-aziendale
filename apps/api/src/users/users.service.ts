@@ -5,6 +5,7 @@ import { Clock } from '../common/clock.js';
 import { CryptoService } from '../common/crypto.service.js';
 import { PrismaService, type Tx } from '../common/prisma.service.js';
 import { PoliciesService } from '../policies/policies.service.js';
+import { EmailVerificationService } from './email-verification.service.js';
 
 @Injectable()
 export class UsersService {
@@ -13,6 +14,7 @@ export class UsersService {
     private readonly crypto: CryptoService,
     private readonly policies: PoliciesService,
     private readonly clock: Clock,
+    private readonly email: EmailVerificationService,
   ) {}
 
   async me(userId: string): Promise<MeDto> {
@@ -26,8 +28,9 @@ export class UsersService {
       siteId: user.siteId,
       comuneIstat: user.comuneIstat,
       roles: user.roles.map((r) => ({ role: r.role, siteId: r.siteId })),
-      onboardingRequired: !user.onboardedAt || pending.length > 0,
+      onboardingRequired: !user.onboardedAt || !user.emailVerifiedAt || pending.length > 0,
       pendingPolicyIds: pending,
+      emailVerified: Boolean(user.emailVerifiedAt),
     };
   }
 
@@ -48,12 +51,14 @@ export class UsersService {
         discoverable: u.consent?.discoverable ?? false,
         emailNotifications: u.consent?.emailNotifications ?? false,
       },
+      email: await this.email.status(userId),
     };
   }
 
   /**
    * Primo avvio: presa visione dell'informativa, accettazione dei termini,
    * consensi facoltativi (separati) e profilo minimo, in un'unica transazione.
+   * L'email deve essere già stata verificata (POST /profile/email/code + /confirm).
    */
   async completeOnboarding(userId: string, input: OnboardingInput): Promise<MeDto> {
     const current = await this.policies.current();
@@ -62,6 +67,10 @@ export class UsersService {
       throw new AppException('POLICIES_REQUIRED', 'È necessario prendere visione dell’informativa e accettare i termini d’uso');
     }
     await this.assertSiteAndComune(input.siteId, input.comuneIstat);
+    const { emailVerifiedAt } = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { emailVerifiedAt: true } });
+    if (!emailVerifiedAt) {
+      throw new AppException('EMAIL_NOT_VERIFIED', 'Conferma prima il tuo indirizzo email con il codice ricevuto');
+    }
     await this.policies.accept(userId, input.acceptedPolicyIds);
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({

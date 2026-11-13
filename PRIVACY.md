@@ -15,7 +15,7 @@ Documento tecnico da mantenere aggiornato a ogni modifica. **Regola:** nessun se
 | Servizio | Quando | Dati inviati | Dati NON inviati | Sede |
 |---|---|---|---|---|
 | **API di autenticazione aziendale** (Active Directory) | Al login; facoltativamente ogni notte per la verifica dei dipendenti usciti | Username e password (solo HTTPS, solo al login); username (verifica notturna, senza password) | Nient'altro | Infrastruttura aziendale |
-| **SMTP aziendale** | Notifiche email, solo per chi ha dato il consenso | Indirizzo aziendale (`username@dominio`), testo generico ("hai una nuova richiesta…") | Nomi di altri utenti, testi della chat, dettagli del viaggio | Infrastruttura aziendale |
+| **SMTP aziendale** | Codice di verifica quando l'utente inserisce o cambia l'email; notifiche email solo per chi ha dato il consenso | Indirizzo scelto dall'utente (aziendale o personale), codice di verifica a 6 cifre oppure testo generico ("hai una nuova richiesta…") | Nomi di altri utenti, testi della chat, dettagli del viaggio | Infrastruttura aziendale; per gli indirizzi personali il messaggio arriva anche al fornitore di posta scelto dall'utente |
 | **Servizi push dei browser** (Google FCM per Chrome/Android, Apple per Safari/iOS, Mozilla per Firefox) | Notifiche push, solo per chi le attiva sul dispositivo | Payload **cifrato end-to-end** (RFC 8291) con un testo generico e un link interno; endpoint del dispositivo | Testi dei messaggi, nomi, dati personali | Dipende dal fornitore del browser: **da valutare con il DPO** (l'endpoint del dispositivo è un identificativo, il contenuto non è leggibile dal fornitore) |
 | **OSRM self-hosted** (Fase 2) | Calcolo delle distanze stradali | Coordinate pubbliche di comuni e sedi | Qualunque dato degli utenti | VM aziendale (estratto OpenStreetMap dell'Italia) |
 
@@ -28,12 +28,13 @@ Documento tecnico da mantenere aggiornato a ogni modifica. **Regola:** nessun se
 |---|---|---|
 | Profilo (nome, cognome, sede, comune) | PostgreSQL | Accesso solo dall'API (rete Docker interna, nessuna porta esposta) |
 | Telefono | PostgreSQL, campo `phoneEnc` | Cifratura applicativa AES-256-GCM (`DATA_ENCRYPTION_KEYS`) |
+| Email per le notifiche | PostgreSQL, `User.emailEnc` e `EmailVerification.emailEnc` | AES-256-GCM. Del codice di verifica si salva solo l'HMAC. Il codice scade dopo 15 minuti e ammette 5 tentativi; si possono chiedere al massimo un codice al minuto e 5 codici all'ora. Le verifiche non completate si cancellano dopo 24 ore; l'email si cancella alla disattivazione |
 | Testi della chat | PostgreSQL, campo `bodyEnc` | AES-256-GCM, cancellazione automatica dopo 30 giorni (configurabile) |
 | Motivazioni delle segnalazioni (Fase 2) | PostgreSQL | AES-256-GCM |
 | Sessioni | PostgreSQL | Si salva solo l'hash SHA-256 del token |
 | Link d'invito | PostgreSQL | Solo l'hash del token; il token sta nel frammento `#` dell'URL e quindi non finisce nei log del server |
 | Contatori anti brute-force | PostgreSQL | Chiavi HMAC di username e IP, nessun dato in chiaro |
-| Log applicativi | stdout del container (rotazione 10×10 MB) | Senza corpo delle richieste, cookie, query string né nomi; utenti solo come pseudonimo HMAC |
+| Log applicativi | stdout del processo | Senza corpo delle richieste, cookie, query string, nomi, indirizzi email né codici di verifica; utenti solo come pseudonimo HMAC |
 | Log di accesso di Caddy | stdout del container | Senza query string né cookie, IP troncato (/16) |
 
 **Password**: mai salvate, loggate o incluse in errori. Vengono inoltrate solo all'API aziendale via HTTPS (redirect disabilitati, nessun retry automatico). I test automatici verificano che non compaiano in log e risposte (`apps/api/test/auth.spec.ts`).

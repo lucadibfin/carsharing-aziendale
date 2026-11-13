@@ -133,6 +133,10 @@ model User {
   comuneIstat         String?    @db.Char(6)
   /// Telefono cifrato (facoltativo).
   phoneEnc            String?
+  /// Email per le notifiche (aziendale o personale), cifrata. Solo indirizzi verificati
+  /// con codice; non serve per il login.
+  emailEnc            String?
+  emailVerifiedAt     DateTime?
   fuelType            FuelType?
   consumptionPer100km Float?
   /// Completamento dell'onboarding (informativa, termini e profilo minimo).
@@ -155,8 +159,28 @@ model User {
   chatMessages        ChatMessage[]
   chatMutes           ChatMute[]
   pushSubscriptions   PushSubscription[]
+  emailVerification   EmailVerification?
 
   @@index([lastName, firstName])
+}
+
+/// Verifica in corso di un nuovo indirizzo email (al massimo una per utente).
+/// L'indirizzo diventa effettivo solo dopo l'inserimento del codice ricevuto.
+model EmailVerification {
+  userId      String   @id @db.Uuid
+  /// Indirizzo da verificare, cifrato.
+  emailEnc    String
+  /// HMAC del codice a 6 cifre: il codice in chiaro non è salvato.
+  codeHash    String
+  expiresAt   DateTime
+  /// Tentativi errati sul codice corrente.
+  attempts    Int      @default(0)
+  /// Invii nella finestra corrente (limite anti abuso).
+  sendCount   Int      @default(1)
+  windowStart DateTime
+  lastSentAt  DateTime
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 /// Consensi facoltativi: separati, non preselezionati, revocabili.

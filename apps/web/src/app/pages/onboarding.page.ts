@@ -8,24 +8,25 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatStepperModule } from '@angular/material/stepper';
 import { Router } from '@angular/router';
-import type { PolicyDto } from '@fcs/shared';
+import type { EmailStatusDto, PolicyDto } from '@fcs/shared';
 import { ApiService } from '../core/api.service';
 import { safeNext } from '../core/guards';
 import { ReferenceStore } from '../core/reference.store';
 import { SessionStore } from '../core/session.store';
 import { ToastService } from '../core/toast.service';
 import { ComunePickerComponent } from '../shared/comune-picker.component';
+import { EmailVerifyComponent } from '../shared/email-verify.component';
 import { MarkdownPipe } from '../shared/markdown.pipe';
 
 /**
  * Primo avvio (e nuova presa visione quando i testi cambiano):
- * informativa art. 13 → termini d'uso → consensi facoltativi separati e NON
- * preselezionati → sede e comune. Nessun trattamento oltre al login prima di
+ * informativa art. 13 → termini d'uso → email per le notifiche (verificata con
+ * codice) → consensi facoltativi separati e NON preselezionati → sede e comune. Nessun trattamento oltre al login prima di
  * questo passaggio.
  */
 @Component({
   selector: 'app-onboarding-page',
-  imports: [FormsModule, MatStepperModule, MatIconModule, MatButtonModule, MatCheckboxModule, MatSlideToggleModule, MatFormFieldModule, MatSelectModule, MarkdownPipe, ComunePickerComponent],
+  imports: [FormsModule, MatStepperModule, MatIconModule, MatButtonModule, MatCheckboxModule, MatSlideToggleModule, MatFormFieldModule, MatSelectModule, MarkdownPipe, ComunePickerComponent, EmailVerifyComponent],
   template: `
     <div class="page">
       <h1 class="page-title">{{ isUpdate() ? 'Documenti aggiornati' : 'Benvenuto' }}</h1>
@@ -56,6 +57,18 @@ import { MarkdownPipe } from '../shared/markdown.pipe';
           </mat-step>
         }
 
+        @if (emailNeeded()) {
+          <mat-step [completed]="emailDone()" [editable]="true">
+            <ng-template matStepLabel>Email per le notifiche</ng-template>
+            @if (emailStatus(); as s) {
+              <app-email-verify [status]="s" (changed)="emailStatus.set($event)" />
+            }
+            <div class="actions">
+              <button mat-flat-button matStepperNext [disabled]="!emailDone()">Continua</button>
+            </div>
+          </mat-step>
+        }
+
         @if (!isUpdate()) {
           <mat-step>
             <ng-template matStepLabel>Consensi facoltativi</ng-template>
@@ -68,7 +81,7 @@ import { MarkdownPipe } from '../shared/markdown.pipe';
                 Rendimi trovabile nella ricerca colleghi per ricevere inviti
               </mat-slide-toggle>
               <mat-slide-toggle [(ngModel)]="consents.emailNotifications">
-                Inviami notifiche anche via email aziendale
+                Inviami le notifiche anche via email
               </mat-slide-toggle>
             </div>
             <div class="actions"><button mat-flat-button matStepperNext>Continua</button></div>
@@ -117,6 +130,10 @@ export class OnboardingPage implements OnInit {
   protected readonly docs = signal<PolicyDto[]>([]);
   protected readonly read = signal<Record<string, boolean>>({});
   protected readonly busy = signal(false);
+  protected readonly emailStatus = signal<EmailStatusDto | null>(null);
+  /** Calcolato una volta all'apertura: lo step resta visibile anche dopo la verifica. */
+  protected readonly emailNeeded = signal(false);
+  protected readonly emailDone = computed(() => Boolean(this.emailStatus()?.email));
   protected termsAccepted = false;
   // Consensi: tutti disattivati di default (privacy by default).
   protected consents = { phoneVisible: false, discoverable: false, emailNotifications: false };
@@ -136,7 +153,9 @@ export class OnboardingPage implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
-    const [docs] = await Promise.all([this.api.policies(), this.ref.loadSites()]);
+    this.emailNeeded.set(!this.session.me()?.emailVerified);
+    const [docs, email] = await Promise.all([this.api.policies(), this.api.emailStatus(), this.ref.loadSites()]);
+    this.emailStatus.set(email);
     // Prima l'informativa, poi i termini.
     this.docs.set([...docs].sort((a, b) => (a.type === 'PRIVACY_NOTICE' ? -1 : b.type === 'PRIVACY_NOTICE' ? 1 : 0)));
     const me = this.session.me();
@@ -159,7 +178,8 @@ export class OnboardingPage implements OnInit {
 
   protected canFinish(): boolean {
     const docsOk = this.pendingDocs().every((p) => this.stepDone(p));
-    return docsOk && (this.isUpdate() || Boolean(this.siteId && this.comuneIstat));
+    const emailOk = !this.emailNeeded() || this.emailDone();
+    return docsOk && emailOk && (this.isUpdate() || Boolean(this.siteId && this.comuneIstat));
   }
 
   async finish(): Promise<void> {
@@ -167,7 +187,9 @@ export class OnboardingPage implements OnInit {
     try {
       const ids = this.pendingDocs().map((d) => d.id);
       const me = this.isUpdate()
-        ? await this.api.acceptPolicies(ids)
+        ? ids.length > 0
+          ? await this.api.acceptPolicies(ids)
+          : await this.api.me()
         : await this.api.onboarding({
             acceptedPolicyIds: ids,
             consents: this.consents,

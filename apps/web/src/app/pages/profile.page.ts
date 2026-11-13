@@ -14,10 +14,11 @@ import { ReferenceStore } from '../core/reference.store';
 import { SessionStore } from '../core/session.store';
 import { ToastService } from '../core/toast.service';
 import { ComunePickerComponent } from '../shared/comune-picker.component';
+import { EmailVerifyComponent } from '../shared/email-verify.component';
 
 @Component({
   selector: 'app-profile-page',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule, ComunePickerComponent],
+  imports: [FormsModule, RouterLink, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule, ComunePickerComponent, EmailVerifyComponent],
   template: `
     <div class="page">
       <h1 class="page-title">Profilo</h1>
@@ -59,6 +60,13 @@ import { ComunePickerComponent } from '../shared/comune-picker.component';
           </mat-card-content>
         </mat-card>
 
+        <h2 class="section-title">Email per le notifiche</h2>
+        <mat-card appearance="outlined">
+          <mat-card-content class="stack">
+            <app-email-verify [status]="p.email" (changed)="onEmailChanged($event)" />
+          </mat-card-content>
+        </mat-card>
+
         <h2 class="section-title">Privacy e consensi</h2>
         <mat-card appearance="outlined">
           <mat-card-content class="stack">
@@ -69,7 +77,7 @@ import { ComunePickerComponent } from '../shared/comune-picker.component';
               Rendimi trovabile nella ricerca colleghi per gli inviti
             </mat-slide-toggle>
             <mat-slide-toggle [checked]="p.consents.emailNotifications" (change)="setConsent('emailNotifications', $event.checked)">
-              Notifiche anche via email aziendale
+              Notifiche anche via email
             </mat-slide-toggle>
             <p class="muted small">Puoi revocare ogni consenso in qualsiasi momento, senza alcuna conseguenza.</p>
             <a mat-button routerLink="/informativa">Leggi l'informativa privacy e i termini d'uso</a>
@@ -167,6 +175,10 @@ export class ProfilePage implements OnInit {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  protected onEmailChanged(email: ProfileDto['email']): void {
+    this.p.update((p) => (p ? { ...p, email } : p));
   }
 
   async setConsent(key: keyof ConsentsInput, value: boolean): Promise<void> {

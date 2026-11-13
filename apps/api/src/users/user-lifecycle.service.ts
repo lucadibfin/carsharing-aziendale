@@ -37,8 +37,10 @@ export class UserLifecycleService {
     const now = this.clock.now();
     await this.prisma.user.update({
       where: { id: userId },
-      data: { status: 'PENDING_DELETION', deactivatedAt: now },
+      // L'email serve solo alle notifiche: a un utente disattivato non si invia più nulla.
+      data: { status: 'PENDING_DELETION', deactivatedAt: now, emailEnc: null, emailVerifiedAt: null },
     });
+    await this.prisma.emailVerification.deleteMany({ where: { userId } });
     await this.prisma.session.deleteMany({ where: { userId } });
     await this.prisma.pushSubscription.deleteMany({ where: { userId } });
 

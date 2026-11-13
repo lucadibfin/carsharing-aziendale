@@ -53,7 +53,9 @@ export const envSchema = z
     SMTP_USER: z.string().optional().default(''),
     SMTP_PASSWORD: z.string().optional().default(''),
     MAIL_FROM: z.string().default('Car Sharing <noreply@example.invalid>'),
-    MAIL_DOMAIN: z.string().default('example.invalid'),
+    /** smtp | outbox (file JSON, solo sviluppo) | disabled. Default: smtp se SMTP_HOST è impostato, altrimenti outbox. */
+    MAIL_TRANSPORT: z.enum(['smtp', 'outbox', 'disabled']).optional(),
+    MAIL_OUTBOX_DIR: z.string().default('.mail-outbox'),
 
     JOBS_ENABLED: bool.default(true),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
@@ -66,6 +68,12 @@ export const envSchema = z
       if (!env.APP_ORIGIN.startsWith('https://')) {
         ctx.addIssue({ code: 'custom', path: ['APP_ORIGIN'], message: 'in produzione deve essere https://' });
       }
+    }
+    if (env.NODE_ENV === 'production' && (env.MAIL_TRANSPORT ?? 'smtp') !== 'smtp') {
+      ctx.addIssue({ code: 'custom', path: ['MAIL_TRANSPORT'], message: 'in produzione è ammesso solo smtp' });
+    }
+    if ((env.MAIL_TRANSPORT === 'smtp' || env.NODE_ENV === 'production') && !env.SMTP_HOST) {
+      ctx.addIssue({ code: 'custom', path: ['SMTP_HOST'], message: 'obbligatorio: serve per verificare le email degli utenti' });
     }
     if (env.AUTH_PROVIDER === 'corporate' && !env.CORPORATE_AUTH_URL.startsWith('https://')) {
       ctx.addIssue({
@@ -89,7 +97,8 @@ export const envSchema = z
     }
   });
 
-export type Env = z.infer<typeof envSchema>;
+type ParsedEnv = z.infer<typeof envSchema>;
+export type Env = Omit<ParsedEnv, 'MAIL_TRANSPORT'> & { MAIL_TRANSPORT: 'smtp' | 'outbox' | 'disabled' };
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const r = envSchema.safeParse(source);
@@ -98,5 +107,5 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     const problems = r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n  ');
     throw new Error(`Configurazione non valida:\n  ${problems}`);
   }
-  return r.data;
+  return { ...r.data, MAIL_TRANSPORT: r.data.MAIL_TRANSPORT ?? (r.data.SMTP_HOST ? 'smtp' : 'outbox') };
 }
