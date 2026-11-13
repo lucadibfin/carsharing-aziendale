@@ -3,7 +3,7 @@
 Documento tecnico da mantenere aggiornato a ogni modifica. **Regola:** nessun servizio esterno può essere aggiunto senza aggiornare questo file e senza l'approvazione del DPO.
 
 ## Principi applicati
-- **Hosting e dati esclusivamente in UE**, su VM gestita dall'azienda (docker-compose: PostgreSQL, API, Caddy).
+- **Hosting e dati esclusivamente in UE**, su VM gestita dall'azienda: PostgreSQL, API Node.js e reverse proxy HTTPS. La modalità di installazione è ancora da definire.
 - **Nessun tracker o analytics** di terze parti, nessun CDN, nessun font esterno. Font (Roboto, `@fontsource`) e icone (Material Symbols SVG) sono ospitati dall'app stessa.
 - **Solo cookie tecnici**:
   - `__Host-sid`: sessione, httpOnly, Secure, SameSite=Lax;
@@ -26,7 +26,7 @@ Documento tecnico da mantenere aggiornato a ogni modifica. **Regola:** nessun se
 ## Dove stanno i dati personali
 | Dato | Dove | Protezione |
 |---|---|---|
-| Profilo (nome, cognome, sede, comune) | PostgreSQL | Accesso solo dall'API (rete Docker interna, nessuna porta esposta) |
+| Profilo (nome, cognome, sede, comune) | PostgreSQL | Accesso solo dall'API (database non esposto sulla rete) |
 | Telefono | PostgreSQL, campo `phoneEnc` | Cifratura applicativa AES-256-GCM (`DATA_ENCRYPTION_KEYS`) |
 | Email per le notifiche | PostgreSQL, `User.emailEnc` e `EmailVerification.emailEnc` | AES-256-GCM. Del codice di verifica si salva solo l'HMAC. Il codice scade dopo 15 minuti e ammette 5 tentativi; si possono chiedere al massimo un codice al minuto e 5 codici all'ora. Le verifiche non completate si cancellano dopo 24 ore; l'email si cancella alla disattivazione |
 | Testi della chat | PostgreSQL, campo `bodyEnc` | AES-256-GCM, cancellazione automatica dopo 30 giorni (configurabile) |
@@ -35,7 +35,7 @@ Documento tecnico da mantenere aggiornato a ogni modifica. **Regola:** nessun se
 | Link d'invito | PostgreSQL | Solo l'hash del token; il token sta nel frammento `#` dell'URL e quindi non finisce nei log del server |
 | Contatori anti brute-force | PostgreSQL | Chiavi HMAC di username e IP, nessun dato in chiaro |
 | Log applicativi | stdout del processo | Senza corpo delle richieste, cookie, query string, nomi, indirizzi email né codici di verifica; utenti solo come pseudonimo HMAC |
-| Log di accesso di Caddy | stdout del container | Senza query string né cookie, IP troncato (/16) |
+| Log di accesso del reverse proxy | Da definire con l'installazione | Raccomandato: senza query string né cookie, IP troncato |
 
 **Password**: mai salvate, loggate o incluse in errori. Vengono inoltrate solo all'API aziendale via HTTPS (redirect disabilitati, nessun retry automatico). I test automatici verificano che non compaiano in log e risposte (`apps/api/test/auth.spec.ts`).
 

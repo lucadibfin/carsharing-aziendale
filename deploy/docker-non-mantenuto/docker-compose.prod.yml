@@ -1,6 +1,6 @@
 # Produzione su VM aziendale (UE). Uso:
-#   cp infra/.env.prod.example infra/.env.prod   # e compilare i segreti
-#   docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.prod up -d --build
+#   cp deploy/docker-non-mantenuto/.env.prod.example deploy/docker-non-mantenuto/.env.prod   # e compilare i segreti
+#   docker compose -f deploy/docker-non-mantenuto/docker-compose.prod.yml --env-file deploy/docker-non-mantenuto/.env.prod up -d --build
 name: fcs-carsharing
 
 services:
@@ -25,7 +25,7 @@ services:
   migrate:
     build:
       context: ..
-      dockerfile: infra/Dockerfile.api
+      dockerfile: deploy/docker-non-mantenuto/Dockerfile.api
       target: migrate
     environment:
       NODE_ENV: production
@@ -39,7 +39,7 @@ services:
   api:
     build:
       context: ..
-      dockerfile: infra/Dockerfile.api
+      dockerfile: deploy/docker-non-mantenuto/Dockerfile.api
       target: runtime
     restart: unless-stopped
     env_file: .env.prod
@@ -62,7 +62,7 @@ services:
   web:
     build:
       context: ..
-      dockerfile: infra/Dockerfile.web
+      dockerfile: deploy/docker-non-mantenuto/Dockerfile.web
     restart: unless-stopped
     environment:
       APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN obbligatorio}

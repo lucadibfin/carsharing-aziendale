@@ -12,5 +12,5 @@ COPY apps/web apps/web
 RUN npm run build -w @fcs/shared && npm run build -w web
 
 FROM caddy:2-alpine
-COPY infra/Caddyfile /etc/caddy/Caddyfile
+COPY deploy/docker-non-mantenuto/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /repo/apps/web/dist/web/browser /srv

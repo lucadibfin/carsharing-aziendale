@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/.angular
+**/coverage
+**/.env
+**/.env.*
+.pgdata
+.git
+deploy/docker-non-mantenuto/.env.prod
+deploy/docker-non-mantenuto/certs
+deploy/docker-non-mantenuto/osrm/data
+apps/api/src/generated

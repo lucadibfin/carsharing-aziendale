@@ -6,11 +6,12 @@ coverage/
 .env
 .env.*
 !.env.example
+!.env.prod.example
 # Dati locali di PostgreSQL embedded
 .pgdata/
 .pgdata-test/
 # OSRM: estratti OSM e grafi (pesanti, si rigenerano)
-infra/osrm/data/
+deploy/**/osrm/data/
 *.log
 .DS_Store
 Thumbs.db

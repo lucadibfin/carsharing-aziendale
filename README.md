@@ -7,7 +7,6 @@ Progressive Web App per il car sharing casa-lavoro tra colleghi delle sedi itali
 apps/api         NestJS 12 (ESM) + Prisma 7 + PostgreSQL + Socket.IO + pg-boss
 apps/web         Angular 22 (zoneless, standalone) + Angular Material + @angular/pwa
 packages/shared  schemi zod, enum e DTO condivisi tra API e frontend
-infra/           Dockerfile, docker-compose di produzione, Caddyfile
 docs/legal       BOZZE di informativa e termini d'uso (da validare dal DPO)
 PRIVACY.md       servizi esterni e flussi di dati
 ```
@@ -43,11 +42,6 @@ Logica critica coperta:
 - **chat WebSocket**: origine verificata, isolamento delle stanze;
 - **disattivazione dei dipendenti usciti**.
 
-## Produzione (VM aziendale)
-```bash
-cp infra/.env.prod.example infra/.env.prod   # compilare i segreti
-docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.prod up -d --build
-```
 
 ## Autenticazione
 - Il modulo `apps/api/src/auth` è sostituibile.
