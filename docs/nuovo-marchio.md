@@ -5,7 +5,8 @@ da una cartella in `brands/`. Il marchio si sceglie con la variabile d'ambiente 
 nella build della web app sia all'avvio dell'API, **senza modificare il codice**.
 
 Marchi presenti:
-- `default`: grafica neutra (verde, Roboto). È il marchio usato se `BRAND` non è impostata.
+- `default`: grafica neutra (verde, Roboto). È il marchio usato se `BRAND` non è impostata. Il
+  nome "Car Sharing aziendale" / "CarSharing" è un **segnaposto**: ogni cliente sceglie il proprio.
 - `fincons`: ispirato al sito Fincons, **uso da approvare**. Vedi [brand-fincons.md](brand-fincons.md).
 
 ## 1. Crea la cartella
@@ -33,6 +34,14 @@ brands/acme/
 
 Lo schema completo, con i commenti, è in `packages/brand/src/schema.ts`. La build segnala
 subito con un messaggio chiaro i campi mancanti o sbagliati e i file che non esistono.
+
+> **Primo campo da personalizzare: il nome dell'app** (`appName`, `shortName`, e lo stesso nome in
+> `email.senderName` ed `email.signature`). Lo sceglie il cliente; nel marchio copiato da
+> `default` c'è il segnaposto "Car Sharing aziendale" / "CarSharing".
+>
+> **Il nome va deciso prima della distribuzione.** Su iOS una PWA già aggiunta alla schermata
+> Home non aggiorna né il nome né l'icona: per vedere quelli nuovi ogni utente dovrebbe
+> rimuoverla e aggiungerla di nuovo. Su Android l'aggiornamento avviene, ma con ritardo.
 
 | Campo | Contenuto |
 |---|---|

@@ -12,9 +12,10 @@ di stile del sito (`/Style_….css`), il CSS di base e il logo SVG (`/imgpub/204
 
 ## Nome e logo
 
-Il prodotto si chiama **Fincons Car Sharing** (nome breve **FCS**) in entrambi i marchi. Nel marchio
-`fincons` la pagina di accesso mostra il logo Fincons accanto al nome. Su schermi stretti il logo va
-sopra il nome.
+Nel marchio `fincons` l'app si chiama **Fincons Car Sharing** (nome breve **FCS**), e la pagina di
+accesso mostra il logo Fincons accanto al nome. Su schermi stretti il logo va sopra il nome.
+Il nome dell'app è sempre scelto dal cliente: il marchio neutro usa il segnaposto "Car Sharing
+aziendale" (vedi [nuovo-marchio.md](nuovo-marchio.md)).
 
 ## Cosa si ricava dal sito
 

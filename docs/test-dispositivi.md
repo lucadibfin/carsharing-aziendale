@@ -120,7 +120,7 @@ Note:
 **Installazione**
 - [ ] Il sito si apre in Safari senza avvisi di certificato. Se Safari avvisa, manca il passaggio "fiducia completa" (Preparazione, punto 4).
 - [ ] In Safari, Profilo → sezione notifiche: compaiono le **istruzioni di installazione** e non il pulsante, perché su iPhone le push richiedono l'app installata.
-- [ ] Condividi → **Aggiungi alla schermata Home**: nome breve del marchio ("FCS") e icona generata dal logo del marchio.
+- [ ] Condividi → **Aggiungi alla schermata Home**: nome breve del marchio (`shortName`, es. "FCS" con `BRAND=fincons`) e icona generata dal logo del marchio.
 - [ ] Aperta dall'icona, l'app è a schermo intero, senza interfaccia di Safari, e non ci sono contenuti nascosti sotto notch o Dynamic Island.
 - [ ] L'app installata **non condivide la sessione** con Safari: va rifatto il login. È un comportamento atteso, da verificare che sia chiaro all'utente.
 
