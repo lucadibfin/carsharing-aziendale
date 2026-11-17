@@ -24,8 +24,11 @@ const fuelProfile = z.object({
 export type FuelProfile = z.infer<typeof fuelProfile>;
 
 /**
- * Valori di partenza indicativi, DA VERIFICARE con il Mobility Manager prima
- * dell'uso nel PSCL (fattori di emissione allo scarico e prezzi medi).
+ * Valori di partenza INDICATIVI, da sostituire dall'area admin prima dell'uso nel PSCL.
+ * Fonti di riferimento (vedi docs/distanze.md):
+ * - CO2 per unità e consumi medi: ISPRA (parametri standard nazionali dei combustibili,
+ *   fattori di emissione del trasporto stradale e dell'energia elettrica);
+ * - prezzi dei carburanti: prezzi medi pubblicati dal Ministero delle Imprese e del Made in Italy.
  */
 export const DEFAULT_FUEL_PROFILES: Record<FuelType, FuelProfile> = {
   PETROL: { consumptionPer100km: 6.5, co2KgPerUnit: 2.32, pricePerUnit: 1.8 },

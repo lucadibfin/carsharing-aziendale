@@ -32,7 +32,9 @@ type NumberKey = {
       <h2 class="section-title">Statistiche: consumi, emissioni e prezzi</h2>
       <p class="muted">
         Usati quando il conducente non ha indicato i dati della sua auto. I valori iniziali sono indicativi:
-        verificarli con il Mobility Manager prima di usare i report nel PSCL.
+        prima di usare i report nel PSCL aggiornarli con le fonti di riferimento, cioè <strong>ISPRA</strong> per
+        emissioni e consumi medi e i <strong>prezzi medi dei carburanti del Ministero delle Imprese e del Made in Italy</strong>,
+        annotando anno e fonte dei valori usati.
       </p>
       <div class="row">
         <mat-form-field class="grow">

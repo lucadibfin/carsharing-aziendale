@@ -104,7 +104,10 @@ Lo smoke test e2e `admin.spec.ts` apre tutte le sezioni dell'area amministrativa
   - diritti GDPR self-service (esportazione JSON, cancellazione dell'account);
   - verifica notturna dei dipendenti e cancellazione degli ex dipendenti;
   - [documento tecnico per il DPO](docs/dpo/documento-tecnico.md).
-- Da fare prima dei test con gli utenti: icone definitive ([docs/icone.md](docs/icone.md)), coordinate di tutti i comuni ([docs/distanze.md](docs/distanze.md)).
+- Da fare prima dei test con gli utenti:
+  - icone definitive ([docs/icone.md](docs/icone.md));
+  - coordinate dei comuni dai confini ISTAT: `npm run coords:istat -w api -- <confini.shp>`, poi `npm run db:seed -w api` ([docs/distanze.md](docs/distanze.md#coordinate-dei-comuni-fonte-istat)).
+- Aggiornamento annuale dell'elenco dei comuni: `npm run comuni:istat -w api -- <Elenco-comuni-italiani.csv>` e rigenerazione delle coordinate (stesso documento).
 - [ ] **Fase 3**:
   - viaggi ricorrenti e membri fissi;
   - lista d'attesa;

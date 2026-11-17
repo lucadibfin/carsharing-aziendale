@@ -17,7 +17,7 @@ Documento tecnico da mantenere aggiornato a ogni modifica. **Regola:** nessun se
 | **API di autenticazione aziendale** (Active Directory) | Al login; facoltativamente ogni notte per la verifica dei dipendenti usciti | Username e password (solo HTTPS, solo al login); username (verifica notturna, senza password) | Nient'altro | Infrastruttura aziendale |
 | **SMTP aziendale** | Codice di verifica quando l'utente inserisce o cambia l'email; notifiche **essenziali** sempre; notifiche **facoltative** solo con il consenso; **mai** la chat | Indirizzo scelto dall'utente (aziendale o personale), codice di verifica a 6 cifre oppure testo generico ("hai una nuova richiesta…") | Nomi di altri utenti, testi della chat, dettagli del viaggio | Infrastruttura aziendale; per gli indirizzi personali il messaggio arriva anche al fornitore di posta scelto dall'utente |
 | **Servizi push dei browser** (Google FCM per Chrome/Android, Apple per Safari/iOS, Mozilla per Firefox) | Notifiche push, solo per chi le attiva sul dispositivo | Payload **cifrato end-to-end** (RFC 8291) con un testo generico e un link interno; endpoint del dispositivo | Testi dei messaggi, nomi, dati personali | Dipende dal fornitore del browser: **da valutare con il DPO** (l'endpoint del dispositivo è un identificativo, il contenuto non è leggibile dal fornitore) |
-| **OSRM self-hosted** (facoltativo, `ROUTING_PROVIDER=osrm`) | Prima volta che serve la distanza tra un comune e una sede (poi in cache) | Solo coordinate pubbliche: centro del comune e sede | Qualunque dato degli utenti, compreso chi ha viaggiato | Infrastruttura aziendale (estratto OpenStreetMap dell'Italia). Con `ROUTING_PROVIDER=estimate` nessun servizio: stima in linea d'aria. Vedi `docs/distanze.md` |
+| **OSRM self-hosted** (facoltativo, `ROUTING_PROVIDER=osrm`) | Prima volta che serve la distanza tra un comune e una sede (poi in cache) | Solo coordinate pubbliche: punto interno al comune (confini ISTAT) e sede | Qualunque dato degli utenti, compreso chi ha viaggiato | Infrastruttura aziendale (estratto OpenStreetMap dell'Italia). Con `ROUTING_PROVIDER=estimate` nessun servizio: stima in linea d'aria. Vedi `docs/distanze.md` |
 
 ## Notifiche: categorie e canali
 La classificazione si trova in `apps/api/src/notifications/notifications.service.ts` (`NOTIFICATION_CATEGORY`), che è l'unico punto da modificare, ed è verificata da un test (`apps/api/test/email.spec.ts`). Le basi giuridiche sono nel par. 5-bis dell'informativa.
@@ -32,7 +32,7 @@ La classificazione si trova in `apps/api/src/notifications/notifications.service
 - **Testi.** Sono sempre generici, sia nelle push sia nelle email.
 - **Avviso di disattivazione.** `ACCOUNT_DEACTIVATED` è inviato subito, fuori dalla coda, prima di cancellare l'email e le sottoscrizioni push.
 ## Dati di riferimento pubblici inclusi nel repository
-- Elenco dei comuni ISTAT (`apps/api/prisma/data/comuni.csv`), generato dal file ufficiale ISTAT "Elenco comuni italiani".
+- Elenco dei comuni ISTAT (`apps/api/prisma/data/comuni.csv`), generato dal file ufficiale ISTAT "Elenco comuni italiani", e coordinate dei comuni (`comuni-coordinate.csv`) ricavate dai confini comunali ISTAT. Fonte: ISTAT, licenza CC BY 4.0. Sono file scaricati una tantum e versionati: l'app non contatta ISTAT. Aggiornamento: `docs/distanze.md`.
 - Icone Material Symbols, licenza Apache 2.0 (`apps/web/public/icons/ms/LICENSE`).
 
 ## Dove stanno i dati personali

@@ -182,12 +182,17 @@ Il primo admin globale è indicato dalla variabile `INITIAL_GLOBAL_ADMIN`. Deve 
 - **Segreti:** solo in variabili d'ambiente. L'app non si avvia se mancano o non sono validi.
 
 ## 9. Distanze e statistiche
-Le distanze sono calcolate **solo tra centro del comune e sede**:
-- sono dati pubblici, salvati in `DistanceCache`;
-- con OSRM self-hosted, OSRM riceve solo quelle coordinate;
-- senza OSRM la distanza è stimata in linea d'aria × 1,3.
+**Distanze.** Sono calcolate **solo tra un punto del territorio comunale e la sede**, cioè tra dati pubblici, e sono salvate in `DistanceCache`.
+- Il punto del comune è un punto interno al territorio (*point on surface*), ricavato dai confini comunali **ISTAT** (licenza CC BY 4.0).
+- Attribuzione "Fonte: ISTAT": nella pagina "Privacy e termini", nei termini d'uso (par. 10), nelle note di statistiche e dashboard e nel file dei dati.
+- Modalità adottata: stima in linea d'aria × coefficiente stradale (1,3, configurabile). **Nessun servizio esterno**.
+- Un eventuale OSRM self-hosted riceverebbe solo le stesse coordinate pubbliche.
 
-Regole di calcolo e fattori di emissione sono in [docs/distanze.md](../distanze.md). I fattori iniziali sono indicativi e vanno verificati dal Mobility Manager.
+**Consumi, emissioni e prezzi.** I valori sono **indicativi** e configurabili dagli admin globali. Fonti di riferimento indicate per l'aggiornamento:
+- **ISPRA** per i fattori di emissione di CO2 dei carburanti e dell'energia elettrica e per i consumi medi del parco auto;
+- **prezzi medi dei carburanti pubblicati dal Ministero delle Imprese e del Made in Italy**.
+
+Regole di calcolo, fonti e procedura di aggiornamento dei dati ISTAT sono in [docs/distanze.md](../distanze.md).
 
 ## 10. Job automatici
 | Ora (Europe/Rome) | Job |
@@ -213,16 +218,42 @@ Una DPIA è **consigliata**. Motivi:
 - audit log immutabile;
 - cancellazione self-service.
 
-## 12. Punti aperti per il DPO
-1. Basi giuridiche proposte, soprattutto per le notifiche essenziali via email e per le statistiche PSCL (informativa, par. 5 e note).
-2. Email personale degli utenti: fornitore di posta scelto dall'utente, eventualmente extra UE.
-3. Servizi push dei browser (Google, Apple, Mozilla): il contenuto è cifrato e generico, ma l'endpoint del dispositivo è un identificativo, con possibile trasferimento extra UE.
-4. Segnalazioni:
-   - nessun avviso individuale al segnalato (art. 14);
-   - nell'esportazione non compare il segnalante;
-   - all'admin è mostrato il numero di segnalazioni ricevute dalla stessa persona.
-5. Periodo di 30 giorni prima della cancellazione definitiva degli ex dipendenti.
-6. Conservazione dell'audit log, che contiene l'UUID anche dopo la cancellazione dell'account, e dei log tecnici.
-7. Soglia minima (k-anonimato) per i report aggregati esportati verso l'esterno: export CSV/Excel in Fase 3.
-8. Fonte e licenza delle coordinate dei comuni: ISTAT (CC BY 4.0) oppure OpenStreetMap (ODbL, con attribuzione).
-9. Dati del Titolare e del DPO, e responsabili del trattamento (gestore della VM, SMTP).
+## 12. Elenco unico: scelte da validare e punti aperti
+Questo è l'**unico elenco** delle questioni per il DPO: l'informativa rimanda qui.
+
+### A. Scelte già implementate, in attesa di validazione
+L'app funziona oggi così. Se il DPO decide diversamente, la modifica è puntuale.
+
+| # | Scelta | Motivazione / alternativa | Dove |
+|---|---|---|---|
+| A1 | **Email obbligatoria** per le notifiche essenziali (viaggio annullato, cambio di orario, richiesta accettata/rifiutata, partecipazione annullata dal conducente, invito, disattivazione), **senza consenso**, base art. 6.1.b | Le push dipendono dal dispositivo; il consenso in ambito lavorativo è di dubbia libertà (EDPB 05/2020). Alternativa: art. 6.1.f con bilanciamento documentato | Informativa par. 5-bis; `NOTIFICATION_CATEGORY` |
+| A2 | Consenso usato **solo** per funzioni realmente facoltative: telefono visibile, trovabilità, notifiche facoltative | Linee guida EDPB 05/2020 sul consenso dei dipendenti | Informativa par. 5 |
+| A3 | **Indirizzo email personale ammesso**, a scelta dell'utente | Non tutti hanno la posta aziendale sul telefono. Il messaggio passa per il fornitore di posta scelto dall'utente, eventualmente extra UE: valutare se segnalarlo nei termini o limitarlo | Informativa par. 4 e 6 |
+| A4 | **Avviso di disattivazione all'ex dipendente**: un solo invio, generico, prima della cancellazione di email e push | Base 6.1.b (ultima comunicazione del servizio) oppure 6.1.f | Informativa par. 5-bis |
+| A5 | Consenso ridefinito ("notifiche via email" → "notifiche facoltative"): **consensi precedenti azzerati** | Finalità diversa, art. 7 | Migrazione `optional_notifications_consent` |
+| A6 | **Statistiche aggregate PSCL**: base art. 6.1.c (D.L. 34/2020 art. 229 c. 4, D.I. 179/2021) e/o 6.1.f | Da verificare rispetto agli obblighi PSCL effettivi dell'azienda | Informativa par. 5, finalità d) |
+| A7 | **Esportazione**: le segnalazioni ricevute compaiono con data, motivazione e stato, ma **senza il segnalante e senza la nota interna dell'admin** | Art. 15 par. 4 (diritti e libertà altrui) | Par. 5 |
+| A8 | **Esportazione**: dei colleghi compaiono solo i nomi già noti all'utente (conducente dei viaggi fatti, preferiti, persone segnalate) | Minimizzazione; i dati sono già noti all'interessato | Par. 5 |
+| A9 | **Segnalazioni**: la persona segnalata **non riceve un avviso individuale**; l'informativa indica che i dati possono essere inseriti da altri partecipanti | Art. 14. Alternativa: avviso generico ("hai ricevuto una segnalazione, esaminata da un admin") | Informativa par. 4 |
+| A10 | **Segnalazioni**: all'admin che ne esamina una è mostrato **quante segnalazioni ha ricevuto la stessa persona** nel periodo di conservazione (12 mesi) | Contesto per una decisione umana; nessun automatismo. Alternativa: non mostrarlo | Par. 6 |
+| A11 | **Ex dipendenti**: **30 giorni** tra disattivazione e cancellazione definitiva (parametro) | Permette di correggere errori del sistema aziendale o riassunzioni; nel frattempo email, sessioni e push sono già cancellate | Par. 4 |
+| A12 | **Audit log**: conserva l'**UUID** dell'account anche dopo la cancellazione, senza altri dati che consentano di risalire alla persona | Integrità del registro (catena di hash) e accountability | Par. 4 e 8 |
+| A13 | **Ricerca utenti degli admin** (assegnazione ruoli): registrata senza il testo cercato | Evita nomi nell'audit log | Par. 6 |
+
+### B. Punti aperti da decidere o compilare
+| # | Punto |
+|---|---|
+| B1 | **Servizi push dei browser** (Google, Apple, Mozilla): contenuto cifrato e generico, ma l'endpoint del dispositivo è un identificativo, con possibile trasferimento extra UE (informativa par. 6, "[DA VERIFICARE]") |
+| B2 | **Conservazione**: audit log (proposta 24 mesi), log tecnici (proposta 6 mesi), viaggi conclusi (proposta 12 mesi). La retention automatica completa è prevista in Fase 3 |
+| B3 | **Soglia minima** (k-anonimato) per i report aggregati esportati verso l'esterno: export CSV/Excel in Fase 3 |
+| B4 | **Dati del Titolare e del DPO**; nomina dei responsabili del trattamento (gestore della VM, servizio SMTP) |
+| B5 | **DPIA**: consigliata (par. 11) |
+| B6 | Termini d'uso: assicurazione, rimborso spese tra colleghi, misure di moderazione (parti "[DA COMPILARE]") |
+
+### C. Decisioni già prese, per traccia
+| # | Decisione | Data |
+|---|---|---|
+| C1 | Coordinate dei comuni da **confini ISTAT** (CC BY 4.0), punto interno al territorio, con attribuzione "Fonte: ISTAT" | 17/11/2026 |
+| C2 | Distanze **stimate** in linea d'aria × 1,3 (configurabile), senza servizi di routing | 17/11/2026 |
+| C3 | Valori di consumi, emissioni e prezzi **indicativi**, con fonti di riferimento ISPRA e Ministero delle Imprese e del Made in Italy | 17/11/2026 |
+| C4 | Classificazione delle notifiche (essenziali / operative / facoltative) approvata dal committente | 13/11/2026 |

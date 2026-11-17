@@ -59,27 +59,7 @@ L'indirizzo email è **obbligatorio** e serve **solo** per le notifiche dell'app
 - **Messaggi della chat.** Non sono mai inviati via email. Le push contengono solo un avviso generico.
 - **Contenuto delle notifiche.** Nessuna notifica (push o email) contiene nomi, testi dei messaggi o altri dati personali: solo un avviso generico. Il dettaglio si vede aprendo l'app.
 
-[NOTA PER IL DPO — scelte da validare:
-1. **Email obbligatoria per le notifiche essenziali, base art. 6.1.b.**
-   - L'uso dell'app è volontario, e chi la usa aderisce alle condizioni d'uso del servizio. Le notifiche essenziali sono parte necessaria di quel servizio.
-   - Non si usa il consenso, perché in ambito lavorativo è di dubbia libertà (EDPB 05/2020), e perché il servizio non potrebbe funzionare senza queste comunicazioni.
-   - Base alternativa da valutare: legittimo interesse (art. 6.1.f), con bilanciamento documentato.
-2. **Indirizzo personale.**
-   - È ammesso su scelta dell'interessato, per chi non ha la posta aziendale sul telefono.
-   - Comporta il recapito tramite un fornitore di posta scelto dall'utente, eventualmente extra UE: valutare se indicarlo nei termini d'uso o limitarlo.
-3. **Avviso di disattivazione all'ex dipendente.**
-   - Unico invio dopo la cessazione, con contenuto generico, prima della cancellazione dei dati.
-   - Base: 6.1.b, ultima comunicazione relativa al servizio, oppure 6.1.f.
-4. **Notifiche facoltative.**
-   - Il consenso è stato ridefinito ("notifiche via email" → "notifiche facoltative").
-   - Trattandosi di una finalità diversa, i consensi raccolti prima della modifica sono stati azzerati e vanno espressi di nuovo.]
-[NOTA PER IL DPO: in ambito lavorativo il consenso è usato **solo** per funzioni realmente facoltative e prive di conseguenze, in linea con le Linee guida EDPB 05/2020. Valutare la base giuridica della finalità d) rispetto agli obblighi PSCL applicabili all'azienda.]
-[NOTA PER IL DPO — Fase 2, scelte da validare (dettagli in docs/dpo/documento-tecnico.md):
-1. Esportazione: le segnalazioni ricevute sono mostrate senza il segnalante e senza la nota interna dell'admin (art. 15 par. 4).
-2. Segnalazioni: la persona segnalata non riceve un avviso individuale; l'informativa (par. 4) indica che i dati possono essere inseriti da altri partecipanti (art. 14). Valutare se aggiungere un avviso.
-3. All'admin che esamina una segnalazione è mostrato quante segnalazioni ha ricevuto la stessa persona nel periodo di conservazione, come contesto per la decisione.
-4. Ex dipendenti: 30 giorni tra disattivazione e cancellazione definitiva, per correggere eventuali errori del sistema aziendale.
-5. Audit log: conserva l'UUID dell'account anche dopo la cancellazione, senza altri dati che consentano di risalire alla persona.]
+[NOTA PER IL DPO: tutte le scelte da validare e i punti aperti (basi giuridiche, email personale, avviso agli ex dipendenti, consensi, segnalazioni, esportazione, conservazione) sono raccolti in un elenco unico in docs/dpo/documento-tecnico.md, par. 12.]
 
 ## 6. Destinatari
 - **Altri utenti dell'app**, nei limiti necessari:
