@@ -23,6 +23,22 @@ export const readyGuard: CanActivateFn = async (_route, state) => {
   return true;
 };
 
+/** Area amministrativa: serve un ruolo (le verifiche vere sono comunque nell'API). */
+export const adminGuard: CanActivateFn = async () => {
+  const session = inject(SessionStore);
+  const router = inject(Router);
+  const me = await session.ensure();
+  return me && me.roles.length > 0 ? true : router.createUrlTree(['/']);
+};
+
+/** Sezioni riservate all'admin globale. */
+export const globalAdminGuard: CanActivateFn = async () => {
+  const session = inject(SessionStore);
+  const router = inject(Router);
+  await session.ensure();
+  return session.isGlobalAdmin() ? true : router.createUrlTree(['/admin']);
+};
+
 /** La pagina di login non serve a chi è già autenticato. */
 export const guestGuard: CanActivateFn = async () => {
   const session = inject(SessionStore);

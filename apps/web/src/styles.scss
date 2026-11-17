@@ -146,3 +146,28 @@ body {
     color: var(--mat-sys-on-error-container);
   }
 }
+
+// ---------- tabelle dell'area amministrativa ----------
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--mat-sys-body-medium);
+}
+
+.table-wrap th,
+.table-wrap td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  white-space: nowrap;
+}
+
+.table-wrap th {
+  font: var(--mat-sys-title-small);
+  color: var(--mat-sys-on-surface-variant);
+}

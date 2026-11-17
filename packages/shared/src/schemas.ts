@@ -191,6 +191,73 @@ export type SendChatMessageInput = z.infer<typeof sendChatMessageSchema>;
 
 export const muteChatSchema = z.object({ muted: z.boolean() });
 
+// ---------- area amministrativa ----------
+const optionalId = id.optional();
+/** Periodo (date incluse). Default lato API: dall'inizio dell'anno a oggi. */
+const period = {
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+};
+
+export const ADMIN_TRIP_STATES = ['upcoming', 'awaiting', 'closed', 'cancelled'] as const;
+export const adminTripsQuerySchema = z.object({
+  siteId: optionalId,
+  ...period,
+  state: z.enum(ADMIN_TRIP_STATES).optional(),
+});
+export type AdminTripsQuery = z.infer<typeof adminTripsQuerySchema>;
+
+export const dashboardQuerySchema = z.object({ siteId: optionalId, ...period });
+export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;
+
+export const adminReportsQuerySchema = z.object({
+  siteId: optionalId,
+  status: z.enum(['OPEN', 'DISMISSED', 'ACKNOWLEDGED']).optional(),
+});
+export type AdminReportsQuery = z.infer<typeof adminReportsQuerySchema>;
+
+export const grantRoleSchema = z
+  .object({
+    userId: id,
+    role: z.enum(['SITE_ADMIN', 'GLOBAL_ADMIN']),
+    siteId: id.nullable().optional(),
+  })
+  .refine((r) => (r.role === 'SITE_ADMIN') === Boolean(r.siteId), {
+    message: 'L’admin di sede richiede una sede; l’admin globale no',
+    path: ['siteId'],
+  });
+export type GrantRoleInput = z.infer<typeof grantRoleSchema>;
+
+export const adminUserSearchSchema = z.object({ q: z.string().trim().min(2).max(60) });
+
+const latitude = z.number().min(35).max(48).nullable();
+const longitude = z.number().min(6).max(19).nullable();
+export const siteInputSchema = z.object({
+  name: trimmed(100).min(2),
+  address: trimmed(200).min(3),
+  comuneIstat: istatCode,
+  lat: latitude.optional(),
+  lon: longitude.optional(),
+  active: z.boolean().optional(),
+});
+export type SiteInput = z.infer<typeof siteInputSchema>;
+export const updateSiteSchema = siteInputSchema.partial();
+export type UpdateSiteInput = z.infer<typeof updateSiteSchema>;
+
+export const publishPolicySchema = z.object({
+  type: z.enum(['PRIVACY_NOTICE', 'TERMS']),
+  title: trimmed(200).min(3),
+  content: z.string().trim().min(50, 'Il testo è troppo breve').max(100_000),
+});
+export type PublishPolicyInput = z.infer<typeof publishPolicySchema>;
+
+export const auditQuerySchema = z.object({
+  ...period,
+  action: z.string().regex(/^[A-Z_]{3,40}$/).optional(),
+  before: z.coerce.number().int().positive().optional(),
+});
+export type AuditQuery = z.infer<typeof auditQuerySchema>;
+
 // ---------- push ----------
 export const pushSubscriptionSchema = z.object({
   endpoint: z.url({ protocol: /^https$/ }).max(1000),

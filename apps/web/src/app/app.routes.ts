@@ -1,5 +1,5 @@
 import type { Routes } from '@angular/router';
-import { authGuard, guestGuard, readyGuard } from './core/guards';
+import { adminGuard, authGuard, globalAdminGuard, guestGuard, readyGuard } from './core/guards';
 
 export const routes: Routes = [
   { path: 'login', canActivate: [guestGuard], title: 'Accedi', loadComponent: () => import('./pages/login.page').then((m) => m.LoginPage) },
@@ -21,7 +21,32 @@ export const routes: Routes = [
       { path: 'viaggi/:id/chat', title: 'Chat', loadComponent: () => import('./pages/trip-chat.page').then((m) => m.TripChatPage) },
       { path: 'profilo', title: 'Profilo', loadComponent: () => import('./pages/profile.page').then((m) => m.ProfilePage) },
       { path: 'statistiche', title: 'Le mie statistiche', loadComponent: () => import('./pages/stats.page').then((m) => m.StatsPage) },
-      { path: 'invito',title: 'Invito', loadComponent: () => import('./pages/invite.page').then((m) => m.InvitePage) },
+      { path: 'invito', title: 'Invito', loadComponent: () => import('./pages/invite.page').then((m) => m.InvitePage) },
+      {
+        path: 'admin',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./pages/admin/admin-shell.page').then((m) => m.AdminShellPage),
+        children: [
+          { path: '', title: 'Admin · Dashboard', loadComponent: () => import('./pages/admin/admin-dashboard.page').then((m) => m.AdminDashboardPage) },
+          { path: 'viaggi', title: 'Admin · Viaggi', loadComponent: () => import('./pages/admin/admin-trips.page').then((m) => m.AdminTripsPage) },
+          {
+            path: 'segnalazioni',
+            title: 'Admin · Segnalazioni',
+            loadComponent: () => import('./pages/admin/admin-reports.page').then((m) => m.AdminReportsPage),
+          },
+          {
+            path: '',
+            canActivateChild: [globalAdminGuard],
+            children: [
+              { path: 'parametri', title: 'Admin · Parametri', loadComponent: () => import('./pages/admin/admin-settings.page').then((m) => m.AdminSettingsPage) },
+              { path: 'ruoli', title: 'Admin · Ruoli', loadComponent: () => import('./pages/admin/admin-roles.page').then((m) => m.AdminRolesPage) },
+              { path: 'sedi', title: 'Admin · Sedi', loadComponent: () => import('./pages/admin/admin-sites.page').then((m) => m.AdminSitesPage) },
+              { path: 'testi', title: 'Admin · Testi legali', loadComponent: () => import('./pages/admin/admin-policies.page').then((m) => m.AdminPoliciesPage) },
+              { path: 'audit', title: 'Admin · Audit log', loadComponent: () => import('./pages/admin/admin-audit.page').then((m) => m.AdminAuditPage) },
+            ],
+          },
+        ],
+      },
     ],
   },
   { path: '**', redirectTo: '' },

@@ -1,4 +1,4 @@
-import { Component, inject, type OnInit, signal } from '@angular/core';
+import { Component, computed, inject, type OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -25,6 +25,9 @@ import { EmailVerifyComponent } from '../shared/email-verify.component';
       <h1 class="page-title">Profilo</h1>
       <nav class="links" aria-label="Sezioni del profilo">
         <a mat-stroked-button routerLink="/statistiche"><mat-icon svgIcon="eco" />Le mie statistiche</a>
+        @if (isAdmin()) {
+          <a mat-stroked-button routerLink="/admin"><mat-icon svgIcon="admin_panel_settings" />Area amministrativa</a>
+        }
       </nav>
       @if (p(); as p) {
         <mat-card appearance="outlined">
@@ -168,6 +171,7 @@ export class ProfilePage implements OnInit {
   protected consumption: number | null = null;
 
   protected readonly favorites = signal<FavoriteDto[]>([]);
+  protected readonly isAdmin = computed(() => (this.session.me()?.roles.length ?? 0) > 0);
 
   async ngOnInit(): Promise<void> {
     await this.ref.loadSites();

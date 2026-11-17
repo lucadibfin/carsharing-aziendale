@@ -15,6 +15,12 @@ export class ReferenceStore {
     return this.loaded;
   }
 
+  /** Da chiamare dopo una modifica delle sedi nell'area admin. */
+  invalidateSites(): Promise<void> {
+    this.loaded = null;
+    return this.loadSites();
+  }
+
   siteName(id: string | null | undefined): string {
     return this.sites().find((s) => s.id === id)?.name ?? '';
   }

@@ -3,6 +3,7 @@ import type { LoginInput } from '@fcs/shared';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { AppException } from '../common/errors.js';
+import { Clock } from '../common/clock.js';
 import { CryptoService } from '../common/crypto.service.js';
 import { PrismaService } from '../common/prisma.service.js';
 import { UserLifecycleService } from '../users/user-lifecycle.service.js';
@@ -29,6 +30,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly lifecycle: UserLifecycleService,
+    private readonly clock: Clock,
   ) {}
 
   /**
@@ -99,7 +101,7 @@ export class AuthService {
   }
 
   private async upsertUser(username: string, firstName: string, lastName: string) {
-    const now = new Date();
+    const now = this.clock.now();
     const user = await this.prisma.user.upsert({
       where: { username },
       create: { username, firstName, lastName, lastLoginAt: now, lastVerifiedAt: now, consent: { create: {} } },

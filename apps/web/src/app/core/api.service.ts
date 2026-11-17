@@ -3,6 +3,24 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type {
   AbsenceReportOptionsDto,
+  AdminAbsenceReportDto,
+  AdminPolicyDto,
+  AdminReportsQuery,
+  AdminRoleDto,
+  AdminSiteDto,
+  AdminTripDto,
+  AdminTripsQuery,
+  AdminUserDto,
+  AuditPageDto,
+  AuditVerifyDto,
+  DashboardDto,
+  DashboardQuery,
+  DecideAbsenceReportInput,
+  GrantRoleInput,
+  PublishPolicyInput,
+  Settings,
+  SiteInput,
+  UpdateSiteInput,
   ApiError,
   ChatMessageDto,
   ComuneDto,
@@ -117,6 +135,27 @@ export class ApiService {
 
   // statistiche
   myStats = () => this.get<PersonalStatsDto>('/stats/me');
+
+  // area amministrativa
+  adminDashboard = (q: DashboardQuery) => this.get<DashboardDto>('/admin/dashboard', { ...q });
+  adminTrips = (q: AdminTripsQuery) => this.get<AdminTripDto[]>('/admin/trips', { ...q });
+  adminReports = (q: AdminReportsQuery) => this.get<AdminAbsenceReportDto[]>('/admin/reports', { ...q });
+  adminReport = (id: string) => this.get<AdminAbsenceReportDto>(`/admin/reports/${id}`);
+  adminDecideReport = (id: string, body: DecideAbsenceReportInput) =>
+    this.post<AdminAbsenceReportDto>(`/admin/reports/${id}/decision`, body);
+  adminSettings = () => this.get<Settings>('/admin/settings');
+  adminUpdateSettings = (s: Settings) => this.put<Settings>('/admin/settings', s);
+  adminRoles = () => this.get<AdminRoleDto[]>('/admin/roles');
+  adminGrantRole = (body: GrantRoleInput) => this.post<AdminRoleDto[]>('/admin/roles', body);
+  adminRevokeRole = (id: string) => this.delete<AdminRoleDto[]>(`/admin/roles/${id}`);
+  adminSearchUsers = (q: string) => this.get<AdminUserDto[]>('/admin/users/search', { q });
+  adminSites = () => this.get<AdminSiteDto[]>('/admin/sites');
+  adminCreateSite = (body: SiteInput) => this.post<AdminSiteDto[]>('/admin/sites', body);
+  adminUpdateSite = (id: string, body: UpdateSiteInput) => this.patch<AdminSiteDto[]>(`/admin/sites/${id}`, body);
+  adminPolicies = () => this.get<AdminPolicyDto[]>('/admin/policies');
+  adminPublishPolicy = (body: PublishPolicyInput) => this.post<AdminPolicyDto[]>('/admin/policies', body);
+  adminAudit = (q: { from?: string; to?: string; action?: string; before?: string }) => this.get<AuditPageDto>('/admin/audit', q);
+  adminVerifyAudit = () => this.post<AuditVerifyDto>('/admin/audit/verify');
 
   // push
   pushKey = () => this.get<{ publicKey: string; enabled: boolean }>('/push/public-key');

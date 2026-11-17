@@ -181,6 +181,101 @@ export interface AbsenceReportOptionsDto {
   deadline: string;
 }
 
+// ---------- area amministrativa ----------
+
+/** Viaggio nell'elenco admin: nessun nome né comune, solo dati di servizio (minimizzazione). */
+export interface AdminTripDto {
+  id: string;
+  siteId: string;
+  siteName: string;
+  date: string;
+  arrivalTime: string;
+  returnTime: string | null;
+  visibility: TripVisibility;
+  status: TripStatus;
+  seats: number;
+  seatsTaken: number;
+  /** Solo per i viaggi chiusi. */
+  passengersPresent: number | null;
+  stopsCount: number;
+}
+
+export interface DashboardTotalsDto {
+  /** Utenti registrati attivi (con primo accesso completato). */
+  registeredUsers: number;
+  /** Utenti con un accesso nel periodo. */
+  activeUsers: number;
+  proposed: { public: number; private: number };
+  completed: { public: number; private: number };
+  cancelled: number;
+  /** Passeggeri presenti / posti offerti nei viaggi completati (0–1). */
+  fillRate: number | null;
+  passengers: number;
+  kmAvoided: number;
+  co2SavedKg: number;
+  fuelSaved: { unit: string; amount: number }[];
+  eurSaved: number;
+  /** Viaggi completati con distanze stimate in linea d'aria. */
+  estimatedTrips: number;
+  /** Viaggi completati senza metriche (coordinate mancanti). */
+  incompleteTrips: number;
+}
+
+export interface DashboardDto {
+  from: string;
+  to: string;
+  totals: DashboardTotalsDto;
+  /** Dettaglio per sede (solo se non è stata scelta una sede). */
+  bySite: (DashboardTotalsDto & { siteId: string; siteName: string })[];
+}
+
+export interface AdminRoleDto {
+  id: string;
+  role: Role;
+  siteId: string | null;
+  siteName: string | null;
+  user: UserSummaryDto;
+  createdAt: string;
+}
+
+export interface AdminUserDto extends UserSummaryDto {
+  siteName: string | null;
+}
+
+export interface AdminSiteDto extends SiteDto {
+  lat: number | null;
+  lon: number | null;
+  active: boolean;
+}
+
+export interface AdminPolicyDto extends PolicyDto {
+  acceptances: number;
+}
+
+export interface AuditEntryDto {
+  id: string;
+  at: string;
+  action: string;
+  actor: UserSummaryDto | null;
+  /** UUID dell'autore se l'utente non esiste più (account cancellato). */
+  actorId: string | null;
+  targetType: string | null;
+  targetId: string | null;
+  meta: unknown;
+}
+
+export interface AuditPageDto {
+  entries: AuditEntryDto[];
+  /** Cursore per la pagina successiva (id più vecchio), null se finita. */
+  nextBefore: string | null;
+}
+
+export interface AuditVerifyDto {
+  ok: boolean;
+  checked: number;
+  brokenAtId: string | null;
+}
+
 /** Segnalazione vista da un admin. Motivazione e nota solo nel dettaglio (accesso registrato nell'audit log). */
 export interface AdminAbsenceReportDto {
   id: string;
