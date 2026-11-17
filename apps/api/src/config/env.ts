@@ -76,6 +76,13 @@ export const envSchema = z
       if (env.AUTH_PROVIDER === 'mock') {
         ctx.addIssue({ code: 'custom', path: ['AUTH_PROVIDER'], message: 'il provider mock non è ammesso in produzione' });
       }
+      if (env.INITIAL_GLOBAL_ADMIN === 'admin') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['INITIAL_GLOBAL_ADMIN'],
+          message: '"admin" è l’utenza fittizia di sviluppo: indicare lo username aziendale reale',
+        });
+      }
       if (!env.APP_ORIGIN.startsWith('https://')) {
         ctx.addIssue({ code: 'custom', path: ['APP_ORIGIN'], message: 'in produzione deve essere https://' });
       }

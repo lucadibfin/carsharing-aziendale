@@ -1,13 +1,27 @@
 // Avvia PostgreSQL embedded per lo sviluppo locale (nessun Docker richiesto).
 // I dati restano in <repo>/.pgdata. Solo per sviluppo: in produzione si usa il
-// container PostgreSQL definito in infra/docker-compose.prod.yml.
-import EmbeddedPostgres from 'embedded-postgres';
+// PostgreSQL gestito dall'infrastruttura aziendale.
 import { existsSync } from 'node:fs';
+import { connect } from 'node:net';
 import { resolve } from 'node:path';
 
 const dataDir = resolve(import.meta.dirname, '../../../.pgdata');
 const port = Number(process.env.DEV_DB_PORT ?? 5433);
 
+// Già avviato (in un altro terminale o rimasto attivo): messaggio chiaro invece di un errore criptico.
+const inUse = await new Promise((done) => {
+  const s = connect(port, '127.0.0.1');
+  s.once('connect', () => (s.destroy(), done(true)));
+  s.once('error', () => done(false));
+});
+if (inUse) {
+  console.log(`La porta ${port} è già in uso: PostgreSQL di sviluppo probabilmente è già avviato. Nulla da fare.`);
+  console.log('Per fermarlo: Ctrl+C nel terminale in cui è stato avviato (oppure chiudere il processo "postgres").');
+  process.exit(0);
+}
+
+// Import dopo il controllo: la libreria registra hook di uscita che disturberebbero il messaggio sopra.
+const { default: EmbeddedPostgres } = await import('embedded-postgres');
 const pg = new EmbeddedPostgres({
   databaseDir: dataDir,
   user: 'fcs',

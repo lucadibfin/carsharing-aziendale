@@ -32,6 +32,19 @@ describe('CorporateIdentityProvider', () => {
     ).toThrow(/AUTH_PROVIDER/);
   });
 
+  it('in produzione l’admin iniziale non può essere l’utenza fittizia "admin"', () => {
+    const prod = {
+      ...baseEnv,
+      NODE_ENV: 'production',
+      APP_ORIGIN: 'https://app.example.invalid',
+      AUTH_PROVIDER: 'corporate',
+      CORPORATE_AUTH_URL: 'https://idp.example.invalid/verify',
+      SMTP_HOST: 'smtp.example.invalid',
+    };
+    expect(() => loadEnv({ ...prod, INITIAL_GLOBAL_ADMIN: 'admin' })).toThrow(/INITIAL_GLOBAL_ADMIN/);
+    expect(loadEnv({ ...prod, INITIAL_GLOBAL_ADMIN: 'mario.rossi' }).INITIAL_GLOBAL_ADMIN).toBe('mario.rossi');
+  });
+
   it('gli errori di configurazione non riportano i valori dei segreti', () => {
     try {
       loadEnv({ ...baseEnv, HMAC_KEY: 'segreto-troppo-corto' });
