@@ -42,7 +42,7 @@ La classificazione si trova in `apps/api/src/notifications/notifications.service
 | Telefono | PostgreSQL, campo `phoneEnc` | Cifratura applicativa AES-256-GCM (`DATA_ENCRYPTION_KEYS`) |
 | Email per le notifiche | PostgreSQL, `User.emailEnc` e `EmailVerification.emailEnc` | AES-256-GCM. Del codice di verifica si salva solo l'HMAC. Il codice scade dopo 15 minuti e ammette 5 tentativi; si possono chiedere al massimo un codice al minuto e 5 codici all'ora. Le verifiche non completate si cancellano dopo 24 ore; l'email si cancella alla disattivazione |
 | Testi della chat | PostgreSQL, campo `bodyEnc` | AES-256-GCM, cancellazione automatica dopo 30 giorni (configurabile) |
-| Motivazioni delle segnalazioni (Fase 2) | PostgreSQL | AES-256-GCM |
+| Motivazioni delle segnalazioni e note degli admin | PostgreSQL, `AbsenceReport` | AES-256-GCM; visibili solo agli admin della sede (accesso registrato), cancellate dopo 12 mesi |
 | Sessioni | PostgreSQL | Si salva solo l'hash SHA-256 del token |
 | Link d'invito | PostgreSQL | Solo l'hash del token; il token sta nel frammento `#` dell'URL e quindi non finisce nei log del server |
 | Contatori anti brute-force | PostgreSQL | Chiavi HMAC di username e IP, nessun dato in chiaro |

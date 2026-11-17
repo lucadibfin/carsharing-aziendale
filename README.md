@@ -66,7 +66,14 @@ Logica critica coperta:
   - il blocco è temporaneo (15 minuti, configurabile) e si toglie da solo;
 - **email per le notifiche**: verifica con codice, scadenza, tentativi e limiti di invio; nessun indirizzo né codice nei log;
 - **chat WebSocket**: origine verificata, isolamento delle stanze;
-- **disattivazione dei dipendenti usciti**.
+- **disattivazione dei dipendenti usciti**, verifica notturna con freno di sicurezza, cancellazione definitiva;
+- **statistiche**: calcoli con auto di default e del conducente, OSRM simulato, fatti anonimi che sopravvivono alle cancellazioni;
+- **segnalazioni**: chi può segnalare chi, cifratura, conservazione;
+- **area admin**: ruoli, ambito di sede, minimizzazione, ultimo admin globale;
+- **audit log**: catena di hash, trigger che vietano modifiche, rilevamento delle manomissioni;
+- **diritti GDPR**: contenuto dell'esportazione, cancellazione dell'account.
+
+Lo smoke test e2e `admin.spec.ts` apre tutte le sezioni dell'area amministrativa.
 
 
 ## Autenticazione
@@ -88,15 +95,16 @@ Logica critica coperta:
   - push generiche raggruppate, email;
   - chiusura del viaggio;
   - cancellazione della chat dopo 30 giorni.
-- [ ] **Fase 2**:
-  - statistiche e OSRM;
-  - preferiti;
-  - segnalazioni;
-  - area admin;
+- [x] **Fase 2**:
+  - statistiche personali e fatti anonimi, distanze con OSRM o stima ([docs/distanze.md](docs/distanze.md));
+  - preferiti con avviso per i loro nuovi viaggi;
+  - segnalazioni di assenza;
+  - area admin (dashboard, viaggi, segnalazioni, parametri, ruoli, sedi, testi legali, audit);
   - audit log immutabile;
-  - diritti GDPR self-service;
-  - verifica notturna;
-  - documento per il DPO.
+  - diritti GDPR self-service (esportazione JSON, cancellazione dell'account);
+  - verifica notturna dei dipendenti e cancellazione degli ex dipendenti;
+  - [documento tecnico per il DPO](docs/dpo/documento-tecnico.md).
+- Da fare prima dei test con gli utenti: icone definitive ([docs/icone.md](docs/icone.md)), coordinate di tutti i comuni ([docs/distanze.md](docs/distanze.md)).
 - [ ] **Fase 3**:
   - viaggi ricorrenti e membri fissi;
   - lista d'attesa;

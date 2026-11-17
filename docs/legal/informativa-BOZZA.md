@@ -28,7 +28,8 @@ L'uso dell'app è **del tutto volontario**. Chi non la usa, smette di usarla o c
 | Segnalazioni di assenza | Segnalazioni di mancata presentazione con motivazione | Inserite da altri partecipanti |
 | Preferenze | Colleghi preferiti, chat silenziate, consensi facoltativi | Inseriti dall'utente |
 | Notifiche | Indirizzo email per le notifiche, aziendale o personale a tua scelta, verificato con un codice inviato all'indirizzo stesso; sottoscrizioni alle notifiche push del browser | Inseriti dall'utente / dispositivo |
-| Tecnici e di sicurezza | Data e ora degli accessi, registro delle azioni amministrative sui dati personali, identificativi pseudonimizzati nei log | Generati dal sistema |
+| Statistiche personali | Per ogni viaggio concluso a cui eri presente: km condivisi, km in auto evitati, CO2, carburante ed euro risparmiati, calcolati sulla distanza stradale tra il comune di salita e la sede | Calcolati dall'app alla chiusura del viaggio |
+| Tecnici e di sicurezza | Data e ora degli accessi, registro delle azioni amministrative sui dati personali (audit log), identificativi pseudonimizzati nei log | Generati dal sistema |
 
 L'indirizzo email è **obbligatorio** e serve **solo** per le notifiche dell'app (vedi par. 5-bis): non è usato per il login, non è visibile agli altri utenti né agli amministratori nelle funzioni di gestione, è conservato cifrato e puoi cambiarlo in qualsiasi momento dal profilo (ogni nuovo indirizzo va confermato con un codice).
 
@@ -73,13 +74,23 @@ L'indirizzo email è **obbligatorio** e serve **solo** per le notifiche dell'app
    - Il consenso è stato ridefinito ("notifiche via email" → "notifiche facoltative").
    - Trattandosi di una finalità diversa, i consensi raccolti prima della modifica sono stati azzerati e vanno espressi di nuovo.]
 [NOTA PER IL DPO: in ambito lavorativo il consenso è usato **solo** per funzioni realmente facoltative e prive di conseguenze, in linea con le Linee guida EDPB 05/2020. Valutare la base giuridica della finalità d) rispetto agli obblighi PSCL applicabili all'azienda.]
+[NOTA PER IL DPO — Fase 2, scelte da validare (dettagli in docs/dpo/documento-tecnico.md):
+1. Esportazione: le segnalazioni ricevute sono mostrate senza il segnalante e senza la nota interna dell'admin (art. 15 par. 4).
+2. Segnalazioni: la persona segnalata non riceve un avviso individuale; l'informativa (par. 4) indica che i dati possono essere inseriti da altri partecipanti (art. 14). Valutare se aggiungere un avviso.
+3. All'admin che esamina una segnalazione è mostrato quante segnalazioni ha ricevuto la stessa persona nel periodo di conservazione, come contesto per la decisione.
+4. Ex dipendenti: 30 giorni tra disattivazione e cancellazione definitiva, per correggere eventuali errori del sistema aziendale.
+5. Audit log: conserva l'UUID dell'account anche dopo la cancellazione, senza altri dati che consentano di risalire alla persona.]
 
 ## 6. Destinatari
 - **Altri utenti dell'app**, nei limiti necessari:
   - nome e cognome del conducente e dei partecipanti, comuni di salita e dati del viaggio;
   - il telefono solo ai partecipanti confermati dello stesso viaggio e solo con il consenso dell'interessato;
   - i viaggi privati sono visibili solo a conducente e invitati.
-- **Amministratori dell'app** (personale autorizzato, art. 29 GDPR e art. 2-quaterdecies D.Lgs. 196/2003), con accesso limitato a quanto strettamente necessario. Gli admin di sede vedono solo la propria sede. Ogni loro azione sui dati personali è registrata.
+- **Amministratori dell'app** (personale autorizzato, art. 29 GDPR e art. 2-quaterdecies D.Lgs. 196/2003), con accesso limitato a quanto strettamente necessario:
+  - l'elenco dei viaggi e la dashboard **non mostrano nomi né comuni**, solo dati di servizio e totali aggregati;
+  - i nomi compaiono solo nella gestione delle segnalazioni di assenza (segnalato e segnalante) e nell'assegnazione dei ruoli;
+  - gli admin di sede vedono solo la propria sede;
+  - ogni consultazione e modifica è registrata in un registro non modificabile (audit log).
 - **Mobility Manager**: riceve **solo dati aggregati e anonimi**.
 - **Fornitori**:
   - [DA COMPILARE: gestore dell'infrastruttura/VM aziendale] in qualità di responsabile del trattamento (art. 28);
@@ -91,7 +102,7 @@ I dati non sono diffusi, non sono ceduti a terzi per fini commerciali e **non so
 ## 7. Tempi di conservazione
 | Dato | Conservazione (valori predefiniti, configurabili) |
 |---|---|
-| Profilo e consensi | Fino alla cancellazione dell'account o alla cessazione del rapporto di lavoro |
+| Profilo, consensi, statistiche personali | Fino alla cancellazione dell'account. In caso di cessazione del rapporto di lavoro: disattivazione immediata (email, sessioni e notifiche cancellate subito, viaggi futuri annullati) e cancellazione definitiva dopo 30 giorni, salvo nuovo accesso nel frattempo (es. riassunzione o errore del sistema aziendale) |
 | Email per le notifiche | Fino alla sostituzione con un nuovo indirizzo verificato, alla cancellazione dell'account o alla disattivazione per cessazione del rapporto (cancellata subito) |
 | Verifiche email non completate (indirizzo in attesa di conferma) | Al massimo 24 ore; il codice è conservato solo in forma non reversibile |
 | Messaggi della chat | 30 giorni dall'invio |
@@ -99,17 +110,19 @@ I dati non sono diffusi, non sono ceduti a terzi per fini commerciali e **non so
 | Viaggi conclusi (dati identificativi) | [DA COMPILARE, proposta: 12 mesi]; dopo restano solo statistiche anonime |
 | Link d'invito scaduti | Cancellati automaticamente dopo la scadenza |
 | Log tecnici | [DA COMPILARE, proposta: 6 mesi] |
-| Registro delle azioni amministrative (audit) | [DA COMPILARE, proposta: 24 mesi] |
+| Registro delle azioni amministrative (audit) | [DA COMPILARE, proposta: 24 mesi]. Contiene solo identificativi tecnici e codici di azione, senza nomi o contenuti |
 | Accettazioni di informativa e termini | Per la durata dell'account, a prova dell'avvenuta presa visione |
 
-Alla cancellazione dell'account o all'uscita dall'azienda i dati personali sono cancellati. Restano solo statistiche aggregate in forma anonima, non riconducibili all'interessato.
+Alla cancellazione dell'account o all'uscita dall'azienda i dati personali sono cancellati, compresi i messaggi inviati in chat e i viaggi proposti. Le segnalazioni che hai inviato restano agli amministratori senza l'indicazione del tuo nome; quelle che ti riguardano sono cancellate. Restano solo statistiche aggregate in forma anonima, non riconducibili all'interessato.
 
 ## 8. Diritti dell'interessato
-Puoi esercitare in qualsiasi momento i diritti degli artt. 15-22 GDPR: accesso, rettifica, cancellazione, limitazione, portabilità, opposizione e revoca del consenso, senza pregiudizio per la liceità del trattamento già svolto. Molti diritti sono esercitabili **direttamente dall'app** (sezione *Profilo → Privacy*):
+Puoi esercitare in qualsiasi momento i diritti degli artt. 15-22 GDPR: accesso, rettifica, cancellazione, limitazione, portabilità, opposizione e revoca del consenso, senza pregiudizio per la liceità del trattamento già svolto. Molti diritti sono esercitabili **direttamente dall'app** (sezione *Profilo*, *I miei dati*):
 - visualizzazione ed esportazione di tutti i tuoi dati in formato JSON;
 - modifica del profilo, incluso il cambio dell'email per le notifiche;
 - revoca dei consensi facoltativi;
-- cancellazione dell'account.
+- cancellazione dell'account, immediata e in un solo passaggio.
+
+L'esportazione comprende anche le segnalazioni di assenza che ti riguardano (data, motivazione e stato), senza il nome di chi le ha inviate, per tutelare i diritti altrui (art. 15 par. 4).
 
 Per gli altri diritti puoi scrivere al DPO. Hai inoltre diritto di proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).
 
