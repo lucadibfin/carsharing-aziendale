@@ -10,6 +10,12 @@
 Fonte: sito istituzionale <https://ita.finconsgroup.com/>, analizzato il 17/11/2026 leggendo il foglio
 di stile del sito (`/Style_….css`), il CSS di base e il logo SVG (`/imgpub/2044508/0/0/logo_fincons.svg`).
 
+## Nome e logo
+
+Il prodotto si chiama **Fincons Car Sharing** (nome breve **FCS**) in entrambi i marchi. Nel marchio
+`fincons` la pagina di accesso mostra il logo Fincons accanto al nome. Su schermi stretti il logo va
+sopra il nome.
+
 ## Cosa si ricava dal sito
 
 ### Colori
@@ -20,6 +26,7 @@ di stile del sito (`/Style_….css`), il CSS di base e il logo SVG (`/imgpub/204
 | Secondario | `#5D5D5F` (logo: `#5b5b5d`) | scritta "GROUP" del logo, box alternati dei case study | `secondary` = `#5d5d5f` |
 | Accento | `#2865C6` | titoli "blu" delle pagine interne | `accent` (tertiary) = `#2865c6` |
 | Testo | `#333` | testo del corpo | `on-surface` ≈ `#1b1b1d` (Material) |
+| Errore | — | — | `error` = `#b84500` (arancio bruciato, distinto dal crimson) |
 | Sfondi | `#fff`, `#f2f2f2`, `#fafafa` | pagine e box | superfici grigio neutro (`neutralChroma: 2`) |
 
 Il crimson è usato quasi sempre su sfondo bianco o come sfondo di testo bianco. Le superfici
@@ -119,10 +126,17 @@ cambia solo quanto basta per raggiungere la soglia. Le correzioni compaiono nell
 stile e nella build. Il colore originale resta disponibile come `--app-color-brand` per usi
 decorativi (logo, fasce), dove il contrasto non è richiesto.
 
-**Da notare.** Il colore di errore di Material (`#b3261e`) è un rosso vicino al crimson
-aziendale. I messaggi di errore restano riconoscibili perché sono sempre accompagnati da
-testo e icona. Se l'azienda preferisce distinguerli di più, basta impostare
-`colors.light.error` in `brand.json`.
+**Colore di errore.** Il rosso di errore di Material (`#b3261e`, tinta 26°) era troppo vicino al
+crimson aziendale (tinta 14°). Per entrambi i marchi l'errore è ora un **arancio bruciato `#b84500`**
+(tinta 41°, 27° di distanza dal crimson), con contrasto 5.15:1 sullo sfondo e 5.39:1 con testo
+bianco. Il contenitore `#ffdbcd` con testo `#7d2d00` arriva a 7.23:1. Il test verifica che la
+distanza di tinta tra errore e colore principale sia almeno 20°.
+
+**Mai solo il colore (WCAG 1.4.1).** Errori e avvisi hanno sempre **icona e testo**:
+- messaggi in linea (`.error-text`) e errori dei campi (`mat-error`): icona "error";
+- notifiche di errore (`ToastService.error`): icona "error";
+- chip di stato (`.chip.warn`, es. "Annullato") e riquadri di avviso nei testi legali: icona "warning";
+- avvisi informativi (banner del comune): icona "info".
 
 ## Come vedere la proposta
 

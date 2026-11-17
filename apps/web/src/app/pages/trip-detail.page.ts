@@ -16,6 +16,7 @@ import type { AbsenceReportOptionsDto, TripDetailDto, TripVisibility, UserSummar
 import { ApiService, errorCode } from '../core/api.service';
 import { SessionStore } from '../core/session.store';
 import { ToastService } from '../core/toast.service';
+import { BRAND } from '../../generated/brand';
 import { STATUS_LABELS } from '../shared/labels';
 
 @Component({
@@ -275,21 +276,21 @@ import { STATUS_LABELS } from '../shared/labels';
   `,
   styles: `
     .cap { text-transform: capitalize; }
-    .tags { margin-bottom: 12px; }
-    .block mat-icon { vertical-align: middle; margin-right: 8px; color: var(--mat-sys-primary); }
-    .notes { white-space: pre-wrap; padding: 8px; background: var(--mat-sys-surface-container); border-radius: 8px; }
+    .tags { margin-bottom: var(--app-space-3); }
+    .block mat-icon { vertical-align: middle; margin-right: var(--app-space-2); color: var(--mat-sys-primary); }
+    .notes { white-space: pre-wrap; padding: var(--app-space-2); background: var(--mat-sys-surface-container); border-radius: var(--app-radius-md); }
     .small { font-size: 0.85em; }
-    .chat-btn { margin: 16px 0 0; }
-    .colleague { padding: 4px 0; }
-    .link-row { margin-top: 12px; }
-    .link-box { background: var(--mat-sys-surface-container); border-radius: 8px; padding: 12px; }
+    .chat-btn { margin: var(--app-space-4) 0 0; }
+    .colleague { padding: var(--app-space-1) 0; }
+    .link-row { margin-top: var(--app-space-3); }
+    .link-box { background: var(--mat-sys-surface-container); border-radius: var(--app-radius-md); padding: var(--app-space-3); }
     .link-box code { word-break: break-all; font-size: 0.85em; }
-    .subtitle { font: var(--mat-sys-title-small); margin: 16px 0 4px; }
-    .sep { margin: 24px 0 8px; }
+    .subtitle { font: var(--mat-sys-title-small); margin: var(--app-space-4) 0 var(--app-space-1); }
+    .sep { margin: var(--app-space-5) 0 var(--app-space-2); }
     .danger { color: var(--mat-sys-error); }
     .star { vertical-align: middle; color: var(--mat-sys-tertiary); }
     .inline { width: 20px; height: 20px; vertical-align: text-bottom; }
-    .report { padding: 4px 0 8px; border-bottom: 1px solid var(--mat-sys-outline-variant); }
+    .report { padding: var(--app-space-1) 0 var(--app-space-2); border-bottom: 1px solid var(--mat-sys-outline-variant); }
     .block .star mat-icon { margin: 0; color: inherit; }
   `,
 })
@@ -476,7 +477,7 @@ export class TripDetailPage implements OnInit {
     this.toast.info('Link copiato');
   }
   async shareLink(): Promise<void> {
-    await navigator.share({ title: 'Invito a un viaggio in car sharing', url: this.lastLink()! }).catch(() => undefined);
+    await navigator.share({ title: `Invito a un viaggio · ${BRAND.shortName}`, url: this.lastLink()! }).catch(() => undefined);
   }
   async revoke(id: string): Promise<void> {
     await this.run(() => this.api.revokeInvitation(id), 'Invito revocato');

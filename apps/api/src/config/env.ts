@@ -18,6 +18,8 @@ export const envSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().default(3000),
     APP_ORIGIN: z.url(),
+    /** Marchio (cartella in brands/): nome dell'app, mittente delle email, dati legali. Deve coincidere con quello della build web. */
+    BRAND: z.string().regex(/^[a-z0-9-]+$/, 'nome di una cartella in brands/').default('default'),
     TRUST_PROXY: z.coerce.number().int().min(0).default(0),
     DATABASE_URL: z.string().min(1),
 
@@ -54,7 +56,16 @@ export const envSchema = z
     SMTP_SECURE: bool.default(false),
     SMTP_USER: z.string().optional().default(''),
     SMTP_PASSWORD: z.string().optional().default(''),
-    MAIL_FROM: z.string().default('Car Sharing <noreply@example.invalid>'),
+    /**
+     * Indirizzo del mittente delle email. Il nome visualizzato arriva dal marchio
+     * (brands/<BRAND>/brand.json, email.senderName). Ammesso anche il vecchio formato
+     * "Nome <indirizzo>": in quel caso si usa solo l'indirizzo.
+     */
+    MAIL_FROM: z
+      .string()
+      .default('noreply@example.invalid')
+      .transform((v) => (/<([^>]+)>/.exec(v)?.[1] ?? v).trim())
+      .pipe(z.email()),
     /** smtp | outbox (file JSON, solo sviluppo) | disabled. Default: smtp se SMTP_HOST è impostato, altrimenti outbox. */
     MAIL_TRANSPORT: z.enum(['smtp', 'outbox', 'disabled']).optional(),
     MAIL_OUTBOX_DIR: z.string().default('.mail-outbox'),

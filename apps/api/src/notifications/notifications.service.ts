@@ -70,7 +70,7 @@ const TEXTS: Record<NotificationType, { title: string; body: string }> = {
   ACCOUNT_DEACTIVATED: {
     title: 'Account disattivato',
     body:
-      'Il tuo account Car Sharing è stato disattivato perché non risulti più tra i dipendenti attivi. ' +
+      'Il tuo account nell’app è stato disattivato perché non risulti più tra i dipendenti attivi. ' +
       'I viaggi futuri sono stati annullati e i tuoi dati personali saranno cancellati.',
   },
   TRIP_REMINDER: { title: 'Promemoria', body: 'Tra poco parte un viaggio a cui partecipi.' },
@@ -177,7 +177,7 @@ export class NotificationsService implements OnModuleInit {
     if (category !== 'PUSH_ONLY' && user.emailVerifiedAt && user.emailEnc) {
       await this.mail.trySend({
         to: this.crypto.decrypt(user.emailEnc),
-        subject: `Car Sharing – ${t.title}`,
+        subject: t.title,
         text: `${t.body}\n\nApri l'app per i dettagli.`,
       });
     }

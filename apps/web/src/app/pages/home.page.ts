@@ -59,11 +59,11 @@ import { TripCardComponent } from '../shared/trip-card.component';
     </div>
   `,
   styles: `
-    .quick { margin-bottom: 8px; }
+    .quick { margin-bottom: var(--app-space-2); }
     .quick a { flex: 1 1 160px; }
-    .with-badge { position: relative; margin-bottom: 12px; }
-    .badge { position: absolute; top: -8px; right: 8px; background: var(--mat-sys-error); color: var(--mat-sys-on-error);
-      border-radius: 999px; padding: 2px 10px; font: var(--mat-sys-label-medium); }
+    .with-badge { position: relative; margin-bottom: var(--app-space-3); }
+    .badge { position: absolute; top: -8px; right: 8px; background: var(--mat-sys-primary); color: var(--mat-sys-on-primary);
+      border-radius: var(--app-radius-pill); padding: 2px 10px; font: var(--mat-sys-label-medium); }
   `,
 })
 export class HomePage implements OnInit {

@@ -114,9 +114,9 @@ import { MarkdownPipe } from '../shared/markdown.pipe';
     </div>
   `,
   styles: `
-    .doc { max-height: 55vh; overflow-y: auto; border: 1px solid var(--mat-sys-outline-variant); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+    .doc { max-height: 55vh; overflow-y: auto; border: 1px solid var(--mat-sys-outline-variant); border-radius: var(--app-radius-md); padding: var(--app-space-3) var(--app-space-4); margin-bottom: var(--app-space-3); }
     .small { font-size: 0.85em; }
-    .consents { margin: 12px 0; }
+    .consents { margin: var(--app-space-3) 0; }
   `,
 })
 export class OnboardingPage implements OnInit {

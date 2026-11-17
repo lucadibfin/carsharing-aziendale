@@ -148,7 +148,7 @@ import { EmailVerifyComponent } from '../shared/email-verify.component';
   `,
   styles: `
     .name { font: var(--mat-sys-title-large); }
-    .links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .links { display: flex; flex-wrap: wrap; gap: var(--app-space-2); margin-bottom: var(--app-space-4); }
     .inline { width: 18px; height: 18px; vertical-align: text-bottom; }
     .small { font-size: 0.85em; }
   `,

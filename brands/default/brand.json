@@ -1,7 +1,7 @@
 {
   "id": "default",
-  "appName": "Car Sharing tra colleghi",
-  "shortName": "CarSharing",
+  "appName": "Fincons Car Sharing",
+  "shortName": "FCS",
   "description": "Condividi l'auto nel tragitto casa-lavoro con i colleghi della tua sede",
   "tagline": "Condividi il tragitto casa-lavoro con i colleghi della tua sede.",
   "logo": "logo.svg",
@@ -33,8 +33,8 @@
   "card": "outlined",
   "elevation": "soft",
   "email": {
-    "senderName": "Car Sharing",
-    "signature": "Questo messaggio è stato inviato automaticamente dall'app Car Sharing tra colleghi. Puoi scegliere quali notifiche ricevere dal tuo profilo."
+    "senderName": "Fincons Car Sharing",
+    "signature": "Questo messaggio è stato inviato automaticamente dall'app Fincons Car Sharing. Puoi scegliere quali notifiche ricevere dal tuo profilo."
   },
   "usageApproval": {
     "approved": true,

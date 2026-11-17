@@ -90,7 +90,7 @@
   align-items: center;
   justify-content: space-between;
   margin-top: var(--app-space-3);
-  padding: 6px 8px 6px 16px;
+  padding: 6px var(--app-space-2) 6px var(--app-space-4);
   border-radius: var(--app-radius-sm);
   background: var(--mat-sys-inverse-surface);
   color: var(--mat-sys-inverse-on-surface);
@@ -115,7 +115,7 @@
   th,
   td {
     text-align: left;
-    padding: 4px;
+    padding: var(--app-space-1);
     border-bottom: 1px solid var(--mat-sys-outline-variant);
     vertical-align: middle;
   }

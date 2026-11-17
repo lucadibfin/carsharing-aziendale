@@ -23,6 +23,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@fcs/brand": "*",
     "@fcs/shared": "*",
     "@nestjs/common": "^12.5.0",
     "@nestjs/core": "^12.5.0",

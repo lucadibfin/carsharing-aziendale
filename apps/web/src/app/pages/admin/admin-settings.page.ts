@@ -71,8 +71,8 @@ type NumberKey = {
     }
   `,
   styles: `
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 12px; }
-    .num { width: 90px; font: inherit; padding: 4px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--app-space-1) var(--app-space-3); }
+    .num { width: 90px; font: inherit; padding: var(--app-space-1); }
   `,
 })
 export class AdminSettingsPage implements OnInit {

@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import type { BrandConfig } from '@fcs/brand';
 import { QUICK_MESSAGES, type QuickMessageCode } from '@fcs/shared';
 import { AuditService } from '../audit/audit.service.js';
 import { NotFound } from '../common/errors.js';
 import { Clock } from '../common/clock.js';
 import { CryptoService } from '../common/crypto.service.js';
+import { BRAND } from '../config/config.module.js';
 import { PrismaService } from '../common/prisma.service.js';
 import { toIsoDate } from '../common/time.js';
 
@@ -28,6 +30,7 @@ export class DataExportService {
     private readonly crypto: CryptoService,
     private readonly clock: Clock,
     private readonly audit: AuditService,
+    @Inject(BRAND) private readonly brand: BrandConfig,
   ) {}
 
   async export(userId: string): Promise<Record<string, unknown>> {
@@ -79,7 +82,8 @@ export class DataExportService {
       informazioni: {
         esportatoIl: this.clock.now().toISOString(),
         contenuto:
-          'Tutti i dati personali che l’app Car Sharing conserva su di te. Restano esclusi solo i dati statistici anonimi, ' +
+          `Tutti i dati personali che l’app ${this.brand.appName} conserva su di te.` +
+          ' Restano esclusi solo i dati statistici anonimi, ' +
           'non riconducibili a te. Per domande scrivi al DPO indicato nell’informativa.',
       },
       account: {

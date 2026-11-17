@@ -17,8 +17,11 @@ const colorSetSchema = z.object({
   neutral: hex.optional(),
   /** Saturazione delle superfici: 0 = grigio puro, 6 = tinta leggera (default Material). */
   neutralChroma: z.number().min(0).max(16).default(6),
-  /** Colore di errore. */
-  error: hex.default('#b3261e'),
+  /**
+   * Colore di errore. Il default (arancio bruciato, 5.15:1 su sfondo chiaro) è scelto per
+   * distinguersi da rossi e cremisi dei marchi: il test richiede almeno 20° di tinta dal primario.
+   */
+  error: hex.default('#b84500'),
 });
 
 export const brandSchema = z.object({
@@ -96,6 +99,7 @@ export const brandSchema = z.object({
     .object({
       companyName: z.string().default(''),
       address: z.string().default(''),
+      vatNumber: z.string().default(''),
       privacyContact: z.string().default(''),
       dpoContact: z.string().default(''),
       website: z.string().default(''),

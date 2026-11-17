@@ -1,4 +1,4 @@
-# Car Sharing tra colleghi (PWA)
+# Fincons Car Sharing (FCS): car sharing tra colleghi (PWA)
 
 Progressive Web App per il car sharing casa-lavoro tra colleghi delle sedi italiane: installabile su iOS e Android senza store. Gli aggregati anonimi supportano il Mobility Manager nella redazione del PSCL.
 
@@ -7,6 +7,8 @@ Progressive Web App per il car sharing casa-lavoro tra colleghi delle sedi itali
 apps/api         NestJS 12 (ESM) + Prisma 7 + PostgreSQL + Socket.IO + pg-boss
 apps/web         Angular 22 (zoneless, standalone) + Angular Material + @angular/pwa
 packages/shared  schemi zod, enum e DTO condivisi tra API e frontend
+packages/brand   marchi white label: schema, design token, verifica del contrasto WCAG
+brands/          un marchio per cliente (brand.json, logo, font): scelto con BRAND
 e2e              test end-to-end Playwright
 deploy/          file Docker NON mantenuti (vedi il README interno)
 docs/legal       BOZZE di informativa e termini d'uso (da validare dal DPO)
@@ -32,6 +34,8 @@ npm run dev:web                             # terminale 3: PWA su http://localho
 Utenti di prova, dati di esempio e giro completo: vedi la sezione [Test in locale](#test-in-locale).
 
 **Email in sviluppo**: con `MAIL_TRANSPORT=outbox` (default senza `SMTP_HOST`) le email non vengono spedite. Sono scritte come file JSON in `apps/api/.mail-outbox/`, e lì si trova il codice di verifica richiesto al primo accesso. In produzione è ammesso solo `smtp`.
+
+**Marchio (white label)**: grafica, nome, email e dati legali arrivano da `brands/<BRAND>/` (default: `default`). Per provare il marchio Fincons: `$env:BRAND='fincons'; npm run dev:web` e `BRAND=fincons` in `apps/api/.env`. Guida di stile (solo sviluppo): <http://localhost:4200/dev/stile>. Nuovo cliente: [docs/nuovo-marchio.md](docs/nuovo-marchio.md); analisi del marchio Fincons: [docs/brand-fincons.md](docs/brand-fincons.md). Dopo l'aggiornamento che ha introdotto i marchi, rilanciare `npm run db:seed` per caricare i testi legali con i segnaposto (in sviluppo la v1 si riallinea ai file).
 
 **Test su iPhone e Android reali** (installazione PWA e push in HTTPS sulla rete locale): vedi [docs/test-dispositivi.md](docs/test-dispositivi.md), che contiene anche la checklist per ciascun dispositivo.
 
@@ -214,9 +218,11 @@ Lo smoke test e2e `admin.spec.ts` apre tutte le sezioni dell'area amministrativa
   - verifica notturna dei dipendenti e cancellazione degli ex dipendenti;
   - [documento tecnico per il DPO](docs/dpo/documento-tecnico.md).
 - Da fare prima dei test con gli utenti:
-  - icone definitive ([docs/icone.md](docs/icone.md));
+  - approvazione dell'azienda all'uso di logo e marchio Fincons ([docs/brand-fincons.md](docs/brand-fincons.md)); le icone si generano dal logo del marchio ([docs/icone.md](docs/icone.md));
+  - dati legali del titolare (`legal` in `brands/<id>/brand.json`);
   - coordinate dei comuni dai confini ISTAT: `npm run coords:istat -w api -- <confini.shp>`, poi `npm run db:seed -w api` ([docs/distanze.md](docs/distanze.md#coordinate-dei-comuni-fonte-istat)).
 - Aggiornamento dell'elenco dei comuni (elenco SITUAS a oggi, confini al 1° gennaio): `npm run comuni:istat -w api -- <situas.csv> --al <data estrazione>`, poi `coords:istat` e `db:seed`. Ricodifiche, fusioni e incorporazioni sono gestite come descritto in [docs/distanze.md](docs/distanze.md#elenco-e-confini-date-diverse).
+- [x] **Grafica white label**: design token, marchi `default` e `fincons`, icone PWA generate, contrasto WCAG AA verificato dai test.
 - [ ] **Fase 3**:
   - viaggi ricorrenti e membri fissi;
   - lista d'attesa;

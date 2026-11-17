@@ -29,7 +29,7 @@ import { SessionStore } from '../../core/session.store';
   styles: `
     .wide { max-width: 1100px; }
     .scope { margin-top: -8px; }
-    .content { padding-top: 16px; }
+    .content { padding-top: var(--app-space-4); }
   `,
 })
 export class AdminShellPage {

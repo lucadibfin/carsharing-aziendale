@@ -1,3 +1,4 @@
+import { argbFromHex, Hct } from '@material/material-color-utilities';
 import { describe, expect, it } from 'vitest';
 import { AA_TEXT, contrastRatio, ensureContrast, formatRatio } from './contrast.js';
 import { listBrands, loadBrand } from './load.js';
@@ -40,6 +41,14 @@ describe.each(listBrands())('marchio "%s"', (id) => {
       const adjusted = tokens.adjustments.find((a) => a.role === role);
       if (!adjusted) expect(tokens.schemes.light[role]).toBe(color.toLowerCase());
     }
+  });
+
+  it('ha un colore di errore ben distinguibile dal colore principale', () => {
+    const primary = Hct.fromInt(argbFromHex(tokens.schemes.light.primary));
+    const error = Hct.fromInt(argbFromHex(tokens.schemes.light.error));
+    const hueDistance = Math.min(Math.abs(primary.hue - error.hue), 360 - Math.abs(primary.hue - error.hue));
+    // Un primario quasi grigio non si confonde con l'errore; altrimenti servono almeno 20° di tinta.
+    if (primary.chroma >= 16) expect(hueDistance, `tinta primario ${primary.hue.toFixed(0)}°, errore ${error.hue.toFixed(0)}°`).toBeGreaterThanOrEqual(20);
   });
 
   it('ha un nome breve adatto alla schermata Home', () => {

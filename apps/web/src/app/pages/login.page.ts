@@ -10,6 +10,7 @@ import { Router, RouterLink } from '@angular/router';
 import { ApiService, errorMessage } from '../core/api.service';
 import { safeNext } from '../core/guards';
 import { SessionStore } from '../core/session.store';
+import { BRAND } from '../../generated/brand';
 
 @Component({
   selector: 'app-login-page',
@@ -17,9 +18,11 @@ import { SessionStore } from '../core/session.store';
   template: `
     <div class="page login">
       <div class="brand">
-        <mat-icon svgIcon="directions_car" class="logo" />
-        <h1>Car Sharing tra colleghi</h1>
-        <p class="muted">Condividi il tragitto casa-lavoro con i colleghi della tua sede.</p>
+        <div class="brand-row">
+          <img [src]="brand.logo" alt="" class="logo" />
+          <h1>{{ brand.appName }}</h1>
+        </div>
+        @if (brand.tagline) { <p class="muted">{{ brand.tagline }}</p> }
       </div>
       <mat-card appearance="outlined">
         @if (busy()) { <mat-progress-bar mode="indeterminate" /> }
@@ -36,7 +39,7 @@ import { SessionStore } from '../core/session.store';
                 <mat-icon [svgIcon]="show() ? 'visibility_off' : 'visibility'" />
               </button>
             </mat-form-field>
-            @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+            @if (error()) { <p class="error-text" role="alert">{{ error() }}</p> }
             <button mat-flat-button type="submit" [disabled]="form.invalid || busy()">Accedi</button>
           </form>
           <p class="muted small">
@@ -49,15 +52,16 @@ import { SessionStore } from '../core/session.store';
     </div>
   `,
   styles: `
-    .login { max-width: 420px; padding-top: 48px; }
-    .brand { text-align: center; margin-bottom: 24px; }
-    .brand h1 { font: var(--mat-sys-headline-small); margin: 8px 0; }
-    .logo { font-size: 56px; width: 56px; height: 56px; color: var(--mat-sys-primary); }
-    .error { color: var(--mat-sys-error); margin: 0; }
-    .small { font-size: 0.85em; margin-top: 16px; }
+    .login { max-width: 420px; padding-top: var(--app-space-7); }
+    .brand { text-align: center; margin-bottom: var(--app-space-5); }
+    .brand-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--app-space-3); }
+    .brand h1 { font: var(--mat-sys-headline-small); margin: 0; }
+    .logo { height: 56px; max-width: 200px; }
+    .small { font-size: 0.85em; margin-top: var(--app-space-4); }
   `,
 })
 export class LoginPage {
+  protected readonly brand = BRAND;
   private readonly api = inject(ApiService);
   private readonly session = inject(SessionStore);
   private readonly router = inject(Router);

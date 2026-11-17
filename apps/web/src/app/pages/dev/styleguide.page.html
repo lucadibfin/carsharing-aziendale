@@ -100,7 +100,14 @@
         <div class="sg-snackbar" role="presentation">
           <span>Viaggio prenotato</span><button type="button">OK</button>
         </div>
-        <button matButton="outlined" class="sg-gap" (click)="toast()">Mostra notifica reale</button>
+        <div class="sg-snackbar toast-error" role="presentation">
+          <span class="mat-mdc-snack-bar-label">Impossibile prenotare: posti esauriti</span><button type="button">Chiudi</button>
+        </div>
+        <p class="error-text sg-gap" role="presentation">Username o password non corretti.</p>
+        <div class="row sg-gap">
+          <button matButton="outlined" (click)="toast()">Notifica reale</button>
+          <button matButton="outlined" (click)="toastError()">Errore reale</button>
+        </div>
 
         <h2 class="section-title">Contrasto (WCAG 2.1 AA)</h2>
         <table class="sg-contrast">

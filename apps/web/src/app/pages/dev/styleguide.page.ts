@@ -11,9 +11,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import type { TripSummaryDto } from '@fcs/shared';
 import { BRAND } from '../../../generated/brand';
+import { ToastService } from '../../core/toast.service';
 import { BRANDS_PREVIEW } from '../../../generated/brands-preview';
 import { ChatMessageComponent } from '../../shared/chat-message.component';
 import { NoticeBannerComponent } from '../../shared/notice-banner.component';
@@ -37,7 +37,7 @@ const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
   styleUrl: './styleguide.page.scss',
 })
 export class StyleguidePage {
-  private readonly snack = inject(MatSnackBar);
+  private readonly toasts = inject(ToastService);
   protected readonly active = BRAND;
   protected readonly brands = BRANDS_PREVIEW;
   protected readonly swatches = [
@@ -77,6 +77,10 @@ export class StyleguidePage {
   }
 
   protected toast(): void {
-    this.snack.open(`Notifica reale del marchio attivo (${this.active.id})`, 'OK', { duration: 4000 });
+    this.toasts.info(`Notifica del marchio attivo (${this.active.id})`);
+  }
+
+  protected toastError(): void {
+    this.toasts.error(null, `Errore di prova del marchio attivo (${this.active.id})`);
   }
 }

@@ -66,13 +66,13 @@ import { ChatMessageComponent } from '../shared/chat-message.component';
   `,
   styles: `
     .chat { display: flex; flex-direction: column; height: calc(100dvh - 64px); max-width: 720px; margin: 0 auto; }
-    .bar { display: flex; align-items: center; gap: 8px; padding: 8px; border-bottom: 1px solid var(--mat-sys-outline-variant); }
+    .bar { display: flex; align-items: center; gap: var(--app-space-2); padding: var(--app-space-2); border-bottom: 1px solid var(--mat-sys-outline-variant); }
     .grow { flex: 1; }
-    .messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
-    .day { align-self: center; font: var(--mat-sys-label-medium); color: var(--mat-sys-on-surface-variant); margin: 8px 0; text-transform: capitalize; }
-    .quick { padding: 4px 8px; overflow-x: auto; }
-    .composer { display: flex; align-items: center; gap: 4px; padding: 4px 8px; }
-    .hint { font-size: 0.75em; padding: 0 12px 8px; margin: 0; }
+    .messages { flex: 1; overflow-y: auto; padding: var(--app-space-3); display: flex; flex-direction: column; gap: 6px; }
+    .day { align-self: center; font: var(--mat-sys-label-medium); color: var(--mat-sys-on-surface-variant); margin: var(--app-space-2) 0; text-transform: capitalize; }
+    .quick { padding: var(--app-space-1) var(--app-space-2); overflow-x: auto; }
+    .composer { display: flex; align-items: center; gap: var(--app-space-1); padding: var(--app-space-1) var(--app-space-2); }
+    .hint { font-size: 0.75em; padding: 0 var(--app-space-3) var(--app-space-2); margin: 0; }
   `,
 })
 export class TripChatPage implements OnInit, OnDestroy {

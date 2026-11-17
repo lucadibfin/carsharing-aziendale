@@ -43,6 +43,10 @@ const TYPE_LABELS: Record<PolicyType, string> = { PRIVACY_NOTICE: 'Informativa p
             Una versione pubblicata non si modifica più. Alla pubblicazione tutti gli utenti dovranno prenderne visione al
             prossimo accesso (data e versione vengono registrate). Far validare il testo al DPO prima di pubblicarlo.
           </p>
+          <p class="muted">
+            Segnaposto sostituiti con i dati del marchio quando gli utenti leggono il testo:
+            <code>{{ placeholders }}</code>. Se un dato manca, compare come "[DA COMPILARE: …]".
+          </p>
           <mat-form-field><mat-label>Titolo</mat-label><input matInput [(ngModel)]="title" maxlength="200" /></mat-form-field>
           <mat-button-toggle-group [(ngModel)]="mode" aria-label="Modalità">
             <mat-button-toggle value="edit">Testo (Markdown)</mat-button-toggle>
@@ -62,14 +66,17 @@ const TYPE_LABELS: Record<PolicyType, string> = { PRIVACY_NOTICE: 'Informativa p
     }
   `,
   styles: `
-    .editor { width: 100%; box-sizing: border-box; font: 14px/1.5 monospace; padding: 8px; }
-    .preview { max-height: 60vh; overflow: auto; border: 1px solid var(--mat-sys-outline-variant); border-radius: 8px; padding: 0 12px; }
+    .editor { width: 100%; box-sizing: border-box; font: 14px/1.5 monospace; padding: var(--app-space-2); }
+    .preview { max-height: 60vh; overflow: auto; border: 1px solid var(--mat-sys-outline-variant); border-radius: var(--app-radius-md); padding: 0 var(--app-space-3); }
   `,
 })
 export class AdminPoliciesPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly toast = inject(ToastService);
   protected readonly labels = TYPE_LABELS;
+  protected readonly placeholders = ['nomeApp', 'nomeBreve', 'ragioneSociale', 'indirizzo', 'partitaIva', 'contattoPrivacy', 'contattoDpo', 'sitoWeb']
+    .map((k) => `{{${k}}}`)
+    .join(' ');
   protected readonly versions = signal<AdminPolicyDto[]>([]);
   protected readonly busy = signal(false);
   protected draftType: PolicyType | null = null;

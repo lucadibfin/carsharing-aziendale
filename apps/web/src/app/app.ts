@@ -37,7 +37,7 @@ import { NoticeBannerComponent } from './shared/notice-banner.component';
     }
     .bottom-nav a {
       flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
-      padding: 8px 0 6px; text-decoration: none; color: var(--mat-sys-on-surface-variant);
+      padding: var(--app-space-2) 0 6px; text-decoration: none; color: var(--mat-sys-on-surface-variant);
       font: var(--mat-sys-label-medium);
     }
     .bottom-nav a.active { color: var(--mat-sys-primary); }

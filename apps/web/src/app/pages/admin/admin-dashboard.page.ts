@@ -83,10 +83,10 @@ import { AdminFiltersComponent } from './admin-filters.component';
     }
   `,
   styles: `
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--app-space-3); margin-top: var(--app-space-2); }
     .value { font: var(--mat-sys-headline-small); }
     .label { color: var(--mat-sys-on-surface-variant); font: var(--mat-sys-body-small); }
-    .small { font-size: 0.85em; margin-top: 12px; }
+    .small { font-size: 0.85em; margin-top: var(--app-space-3); }
   `,
 })
 export class AdminDashboardPage {

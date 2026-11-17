@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, type OnModuleInit } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import { randomInt } from 'node:crypto';
 import { EMAIL_CODE_LENGTH, type EmailStatusDto } from '@fcs/shared';
 import { Clock } from '../common/clock.js';
@@ -7,6 +7,8 @@ import { AppException } from '../common/errors.js';
 import { PrismaService } from '../common/prisma.service.js';
 import { JobQueue } from '../jobs/job-queue.js';
 import { MailDeliveryError, MailService } from '../notifications/mail.service.js';
+import { BRAND } from '../config/config.module.js';
+import type { BrandConfig } from '@fcs/brand';
 
 /** Validità del codice. */
 export const EMAIL_CODE_TTL_MINUTES = 15;
@@ -33,6 +35,7 @@ export class EmailVerificationService implements OnModuleInit {
     private readonly mail: MailService,
     private readonly clock: Clock,
     private readonly queue: JobQueue,
+    @Inject(BRAND) private readonly brand: BrandConfig,
   ) {}
 
   onModuleInit(): void {
@@ -94,9 +97,9 @@ export class EmailVerificationService implements OnModuleInit {
     try {
       await this.mail.send({
         to: email,
-        subject: 'Car Sharing – codice di verifica',
+        subject: 'Codice di verifica',
         text:
-          `Il tuo codice per confermare questo indirizzo nell'app Car Sharing è: ${code}\n\n` +
+          `Il tuo codice per confermare questo indirizzo nell'app ${this.brand.appName} è: ${code}\n\n` +
           `Il codice scade tra ${EMAIL_CODE_TTL_MINUTES} minuti.\n` +
           `L'indirizzo sarà usato solo per le notifiche dell'app.\n` +
           `Se non hai richiesto tu il codice, ignora questo messaggio.`,

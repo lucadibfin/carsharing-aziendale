@@ -1,3 +1,4 @@
+import { loadBrand } from '@fcs/brand';
 import { Writable } from 'node:stream';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { setLogDestination } from '../src/logging.js';
@@ -179,6 +180,10 @@ describe('Email per le notifiche con verifica tramite codice', () => {
       await driver.post(`/trips/${trip.id}/participants/${pid}/accept`);
       expect(recipients(mail)).toEqual(['laura.bianchi@example.test']);
       expect(mail.mock.calls[0]![0].text).not.toMatch(/Mario|Rossi/);
+      // Oggetto e firma arrivano dal marchio (BRAND=default nei test).
+      const brand = loadBrand('default').config;
+      expect(mail.mock.calls[0]![0].subject).toBe(`${brand.shortName} – Richiesta accettata`);
+      expect(mail.mock.calls[0]![0].text.endsWith(`\n\n-- \n${brand.email.signature}`)).toBe(true);
       expect(push).toHaveBeenCalledWith(passenger.userId, expect.objectContaining({ title: 'Richiesta accettata' }));
 
       mail.mockClear();

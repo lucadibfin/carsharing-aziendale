@@ -59,12 +59,12 @@ import { ToastService } from '../core/toast.service';
     </div>
   `,
   styles: `
-    .period { margin-bottom: 16px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .period { margin-bottom: var(--app-space-4); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--app-space-3); }
     .value { font: var(--mat-sys-headline-small); }
     .label { color: var(--mat-sys-on-surface-variant); font: var(--mat-sys-body-small); }
     .eco mat-icon { color: var(--mat-sys-primary); }
-    .small { font-size: 0.85em; margin-top: 16px; }
+    .small { font-size: 0.85em; margin-top: var(--app-space-4); }
   `,
 })
 export class StatsPage implements OnInit {

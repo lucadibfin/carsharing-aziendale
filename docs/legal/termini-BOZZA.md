@@ -1,10 +1,10 @@
 > **⚠ BOZZA — DA VALIDARE DAL DPO E DALL'UFFICIO LEGALE/HR AZIENDALE PRIMA DELLA PUBBLICAZIONE.**
-> Le parti tra `[DA COMPILARE: …]` richiedono decisioni aziendali.
+> Le parti tra `[DA COMPILARE: …]` richiedono decisioni aziendali. I segnaposto tra doppie graffe (nomeApp, ragioneSociale) vengono sostituiti dall'app con i dati del marchio.
 
-# Termini d'uso — App Car Sharing tra colleghi
+# Termini d'uso — App {{nomeApp}}
 
 ## 1. Oggetto
-L'app è uno strumento messo a disposizione da [DA COMPILARE: società] per aiutare i colleghi a organizzare in autonomia la condivisione dell'auto nel tragitto casa-lavoro. L'azienda fornisce solo lo strumento e **non organizza i viaggi né ne è parte**.
+L'app è uno strumento messo a disposizione da {{ragioneSociale}} per aiutare i colleghi a organizzare in autonomia la condivisione dell'auto nel tragitto casa-lavoro. L'azienda fornisce solo lo strumento e **non organizza i viaggi né ne è parte**.
 
 ## 2. Uso volontario
 L'uso dell'app è facoltativo. Non usarla, smettere di usarla o cancellare l'account non comporta alcuna conseguenza. L'adesione a un viaggio è una libera intesa tra colleghi.

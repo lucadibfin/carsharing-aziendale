@@ -74,7 +74,7 @@ import { AdminFiltersComponent } from './admin-filters.component';
   `,
   styles: `
     .small { font-size: 0.85em; }
-    .reason { white-space: pre-wrap; background: var(--mat-sys-surface-container); padding: 8px; border-radius: 8px; }
+    .reason { white-space: pre-wrap; background: var(--mat-sys-surface-container); padding: var(--app-space-2); border-radius: var(--app-radius-md); }
   `,
 })
 export class AdminReportsPage {

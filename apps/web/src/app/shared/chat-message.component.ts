@@ -8,7 +8,7 @@ import { Component, input } from '@angular/core';
     <div class="text">{{ text() }}</div>
     <div class="time">{{ time() }}</div>
   `,
-  host: { '[class.mine]': 'mine()', '[class.quick]': 'quick()' },
+  host: { class: 'msg', '[class.mine]': 'mine()', '[class.quick]': 'quick()' },
   styles: `
     :host {
       display: block; max-width: 80%; align-self: flex-start;

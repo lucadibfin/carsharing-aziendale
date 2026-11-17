@@ -1,3 +1,4 @@
+import { loadBrand } from '@fcs/brand';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AdminRoleDto, AdminTripDto, AuditPageDto, DashboardDto, Settings, TripDetailDto } from '@fcs/shared';
 import { SettingsService } from '../src/settings/settings.service.js';
@@ -171,11 +172,17 @@ describe('Area amministrativa', () => {
     });
 
     it('testi legali: una nuova versione richiede una nuova presa visione a tutti', async () => {
-      const content = 'Nuova informativa di prova. '.repeat(5);
+      const content = 'Nuova informativa di prova di {{ragioneSociale}} per {{nomeApp}}. '.repeat(3);
       const r = await admin.post('/admin/policies', { type: 'PRIVACY_NOTICE', title: 'Informativa privacy', content });
       expect(r.status).toBe(201);
       const v = r.body.find((p: { type: string; version: number }) => p.type === 'PRIVACY_NOTICE' && p.version === 2);
       expect(v).toBeTruthy();
+      // L'amministratore vede (e modifica) i segnaposto; gli utenti leggono i dati del marchio.
+      expect(v.content).toContain('{{nomeApp}}');
+      const shown = (await mario.get('/policies/current')).body.find((p: { id: string }) => p.id === v.id);
+      expect(shown.content).toContain(loadBrand('default').config.appName);
+      expect(shown.content).toContain('[DA COMPILARE: ragione sociale]');
+      expect(shown.content).not.toContain('{{');
       expect((await mario.get('/me')).body.onboardingRequired).toBe(true);
       expect((await mario.get('/trips/mine')).status).toBe(403);
       await mario.post('/policies/accept', { policyIds: [v.id] });

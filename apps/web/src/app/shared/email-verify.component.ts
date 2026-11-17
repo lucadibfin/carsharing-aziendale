@@ -60,7 +60,7 @@ import { ToastService } from '../core/toast.service';
     }
   `,
   styles: `
-    .row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+    .row { display: flex; gap: var(--app-space-2); align-items: baseline; flex-wrap: wrap; }
     .grow { flex: 1 1 220px; }
     .code { width: 140px; }
     .ok { color: var(--mat-sys-primary); }

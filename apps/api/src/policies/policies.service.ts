@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { type BrandConfig, fillPlaceholders } from '@fcs/brand';
 import type { PolicyDto } from '@fcs/shared';
 import { PrismaService } from '../common/prisma.service.js';
 import type { PolicyDocument } from '../generated/prisma/client.js';
 import { AppException } from '../common/errors.js';
+import { BRAND } from '../config/config.module.js';
 
 const CACHE_MS = 30_000;
 
@@ -11,7 +13,10 @@ const CACHE_MS = 30_000;
 export class PoliciesService {
   private cache: { docs: PolicyDocument[]; at: number } | null = null;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(BRAND) private readonly brand: BrandConfig,
+  ) {}
 
   async current(): Promise<PolicyDocument[]> {
     if (this.cache && Date.now() - this.cache.at < CACHE_MS) return this.cache.docs;
@@ -51,13 +56,17 @@ export class PoliciesService {
     });
   }
 
-  toDto(d: PolicyDocument): PolicyDto {
+  /**
+   * I testi conservano i segnaposto del marchio ({{nomeApp}}, {{ragioneSociale}}…), sostituiti
+   * solo qui alla lettura: chi modifica i testi in /admin/testi lavora sui segnaposto (fill = false).
+   */
+  toDto(d: PolicyDocument, { fill = true }: { fill?: boolean } = {}): PolicyDto {
     return {
       id: d.id,
       type: d.type,
       version: d.version,
-      title: d.title,
-      content: d.content,
+      title: fill ? fillPlaceholders(d.title, this.brand) : d.title,
+      content: fill ? fillPlaceholders(d.content, this.brand) : d.content,
       publishedAt: d.publishedAt.toISOString(),
     };
   }

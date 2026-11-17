@@ -10,6 +10,7 @@ import { Router, RouterLink } from '@angular/router';
 import { ApiService, errorCode } from '../core/api.service';
 import { SessionStore } from '../core/session.store';
 import { ToastService } from '../core/toast.service';
+import { BRAND } from '../../generated/brand';
 
 /** Titoli leggibili delle sezioni dell'esportazione. */
 const SECTION_LABELS: Record<string, string> = {
@@ -75,10 +76,10 @@ const SECTION_LABELS: Record<string, string> = {
     </div>
   `,
   styles: `
-    .start { justify-content: flex-start; margin-bottom: 12px; }
-    details { border-bottom: 1px solid var(--mat-sys-outline-variant); padding: 8px 0; }
-    summary { cursor: pointer; font: var(--mat-sys-title-small); padding: 4px 0; }
-    pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--mat-sys-surface-container); padding: 8px; border-radius: 8px; }
+    .start { justify-content: flex-start; margin-bottom: var(--app-space-3); }
+    details { border-bottom: 1px solid var(--mat-sys-outline-variant); padding: var(--app-space-2) 0; }
+    summary { cursor: pointer; font: var(--mat-sys-title-small); padding: var(--app-space-1) 0; }
+    pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--mat-sys-surface-container); padding: var(--app-space-2); border-radius: var(--app-radius-md); }
     .danger { color: var(--mat-sys-error); }
     .danger-btn { background: var(--mat-sys-error); color: var(--mat-sys-on-error); }
   `,
@@ -112,7 +113,7 @@ export class MyDataPage implements OnInit {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `carsharing-miei-dati-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `${BRAND.shortName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-miei-dati-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -122,7 +123,7 @@ export class MyDataPage implements OnInit {
     try {
       await this.api.deleteAccount();
       this.session.clear();
-      this.toast.info('Account cancellato. Grazie per aver usato Car Sharing.');
+      this.toast.info(`Account cancellato. Grazie per aver usato ${BRAND.appName}.`);
       await this.router.navigate(['/login']);
     } catch (e) {
       if (errorCode(e) === 'LAST_GLOBAL_ADMIN') this.toast.error(e);

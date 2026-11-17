@@ -120,7 +120,7 @@ Note:
 **Installazione**
 - [ ] Il sito si apre in Safari senza avvisi di certificato. Se Safari avvisa, manca il passaggio "fiducia completa" (Preparazione, punto 4).
 - [ ] In Safari, Profilo → sezione notifiche: compaiono le **istruzioni di installazione** e non il pulsante, perché su iPhone le push richiedono l'app installata.
-- [ ] Condividi → **Aggiungi alla schermata Home**: nome "CarSharing" e icona (segnaposto, da sostituire).
+- [ ] Condividi → **Aggiungi alla schermata Home**: nome breve del marchio ("FCS") e icona generata dal logo del marchio.
 - [ ] Aperta dall'icona, l'app è a schermo intero, senza interfaccia di Safari, e non ci sono contenuti nascosti sotto notch o Dynamic Island.
 - [ ] L'app installata **non condivide la sessione** con Safari: va rifatto il login. È un comportamento atteso, da verificare che sia chiaro all'utente.
 
@@ -132,7 +132,7 @@ Note:
   - [ ] il tocco apre la pagina giusta;
   - [ ] chat raggruppata e silenziabile.
 - [ ] Se le push **non arrivano** su iPhone ma su Android sì: controllare i log dell'API. Un errore 403 "BadJwtToken" indica un `VAPID_SUBJECT` non accettato da Apple. Un errore di rete verso `web.push.apple.com` indica il proxy o il firewall.
-- [ ] Impostazioni iOS → Notifiche → CarSharing: disattivando, non arrivano più e l'app continua a funzionare.
+- [ ] Impostazioni iOS → Notifiche → FCS: disattivando, non arrivano più e l'app continua a funzionare.
 
 **Uso quotidiano**
 - [ ] Come per Android: chat in tempo reale dopo il background, tastiera, data e ora, comune, modalità aereo.

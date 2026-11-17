@@ -179,7 +179,7 @@ export class AdminConfigService {
       orderBy: [{ type: 'asc' }, { version: 'desc' }],
       include: { _count: { select: { acceptances: true } } },
     });
-    return docs.map((d) => ({ ...this.policies.toDto(d), acceptances: d._count.acceptances }));
+    return docs.map((d) => ({ ...this.policies.toDto(d, { fill: false }), acceptances: d._count.acceptances }));
   }
 
   /**

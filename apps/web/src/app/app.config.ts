@@ -8,11 +8,12 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
-import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
+import { provideRouter, TitleStrategy, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { routes } from './app.routes';
 import { httpErrorInterceptor } from './core/http-error.interceptor';
 import { registerIcons } from './core/icons';
+import { BrandTitleStrategy } from './core/title.strategy';
 
 registerLocaleData(localeIt);
 
@@ -40,6 +41,7 @@ export const appConfig: ApplicationConfig = {
     // XSRF: Angular legge il cookie XSRF-TOKEN e invia l'header X-XSRF-TOKEN (verificato dall'API).
     provideHttpClient(withXsrfConfiguration({ cookieName: 'XSRF-TOKEN', headerName: 'X-XSRF-TOKEN' }), withInterceptors([httpErrorInterceptor])),
     { provide: LOCALE_ID, useValue: 'it-IT' },
+    { provide: TitleStrategy, useClass: BrandTitleStrategy },
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',

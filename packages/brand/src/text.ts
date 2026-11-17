@@ -8,6 +8,7 @@ export function brandPlaceholders(brand: BrandConfig): Record<string, string> {
     nomeBreve: brand.shortName,
     ragioneSociale: brand.legal.companyName || todo('ragione sociale'),
     indirizzo: brand.legal.address || todo('indirizzo della sede legale'),
+    partitaIva: brand.legal.vatNumber || todo('partita IVA'),
     contattoPrivacy: brand.legal.privacyContact || todo('contatto privacy'),
     contattoDpo: brand.legal.dpoContact || todo('contatto del DPO'),
     sitoWeb: brand.legal.website || todo('sito web'),

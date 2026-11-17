@@ -1,16 +1,16 @@
 > **⚠ BOZZA — DA VALIDARE DAL DPO AZIENDALE PRIMA DELLA PUBBLICAZIONE.**
 > Testo generato a partire dai trattamenti effettivamente svolti dall'applicazione.
-> Le parti tra `[DA COMPILARE: …]` richiedono dati aziendali. Le scelte sulla base giuridica sono proposte e vanno confermate dal DPO.
+> Le parti tra `[DA COMPILARE: …]` richiedono dati aziendali. I segnaposto tra doppie graffe (nomeApp, ragioneSociale, indirizzo, partitaIva, contattoPrivacy, contattoDpo) vengono sostituiti dall'app con i dati del marchio (`brands/<id>/brand.json`, sezione `legal`); finché mancano compaiono come `[DA COMPILARE: …]`. Le scelte sulla base giuridica sono proposte e vanno confermate dal DPO.
 
-# Informativa sul trattamento dei dati personali — App Car Sharing tra colleghi
+# Informativa sul trattamento dei dati personali — App {{nomeApp}}
 
 *ai sensi dell'art. 13 del Regolamento (UE) 2016/679 ("GDPR")*
 
 ## 1. Titolare del trattamento
-[DA COMPILARE: ragione sociale, sede legale, P.IVA, contatto privacy del Titolare].
+{{ragioneSociale}}, {{indirizzo}}, P.IVA {{partitaIva}}, contatto privacy: {{contattoPrivacy}}.
 
 ## 2. Responsabile della protezione dei dati (DPO)
-Il DPO è contattabile all'indirizzo [DA COMPILARE: email del DPO].
+Il DPO è contattabile all'indirizzo {{contattoDpo}}.
 
 ## 3. Natura volontaria dell'utilizzo
 L'uso dell'app è **del tutto volontario**. Chi non la usa, smette di usarla o cancella il proprio account non subisce alcuna conseguenza lavorativa. I dati trattati nell'app **non sono usati per valutare la prestazione lavorativa, né per controllare a distanza l'attività dei dipendenti, né a fini disciplinari** (art. 4 L. 300/1970).

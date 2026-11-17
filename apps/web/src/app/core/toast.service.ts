@@ -11,6 +11,6 @@ export class ToastService {
   }
 
   error(e: unknown, fallback?: string): void {
-    this.snack.open(errorMessage(e, fallback), 'Chiudi', { duration: 6000, politeness: 'assertive' });
+    this.snack.open(errorMessage(e, fallback), 'Chiudi', { duration: 6000, politeness: 'assertive', panelClass: 'toast-error' });
   }
 }

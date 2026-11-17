@@ -36,11 +36,11 @@ import { STATUS_LABELS } from './labels';
   `,
   styles: `
     .trip-card { cursor: pointer; }
-    .head { display: flex; justify-content: space-between; gap: 8px; }
+    .head { display: flex; justify-content: space-between; gap: var(--app-space-2); }
     .date { font: var(--mat-sys-title-medium); text-transform: capitalize; }
     .seats { display: flex; align-items: center; gap: 2px; font: var(--mat-sys-title-small); color: var(--mat-sys-primary); }
-    .route { margin: 8px 0; font: var(--mat-sys-body-large); }
-    .tags { gap: 8px; }
+    .route { margin: var(--app-space-2) 0; font: var(--mat-sys-body-large); }
+    .tags { gap: var(--app-space-2); }
   `,
 })
 export class TripCardComponent {

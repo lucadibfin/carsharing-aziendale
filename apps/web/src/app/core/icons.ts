@@ -13,7 +13,7 @@ export const ICONS = [
   'route', 'location_on', 'person', 'chat', 'person_remove', 'close', 'check', 'link', 'arrow_back', 'send',
   'arrow_upward', 'delete', 'add_location_alt', 'home', 'add_circle', 'eco', 'star', 'star-fill',
   'admin_panel_settings', 'download', 'flag', 'settings', 'history', 'description', 'group', 'delete_forever',
-  'apartment', 'verified',
+  'apartment', 'verified', 'error', 'warning', 'info',
 ] as const;
 
 export function registerIcons(): void {

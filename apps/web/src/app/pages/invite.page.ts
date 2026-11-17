@@ -44,7 +44,7 @@ const STORAGE_KEY = 'pendingInviteToken';
       }
     </div>
   `,
-  styles: `.pick { margin-top: 16px; }`,
+  styles: `.pick { margin-top: var(--app-space-4); }`,
 })
 export class InvitePage implements OnInit {
   private readonly api = inject(ApiService);

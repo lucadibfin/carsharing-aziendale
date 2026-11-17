@@ -1,4 +1,4 @@
-# Documento tecnico per il DPO — App Car Sharing tra colleghi
+# Documento tecnico per il DPO — App Fincons Car Sharing
 
 > **BOZZA tecnica** a supporto del registro dei trattamenti (art. 30) e della valutazione d'impatto (art. 35).
 > Descrive l'applicazione **come implementata** a fine Fase 2. I punti aperti sono raccolti nel par. 12.
