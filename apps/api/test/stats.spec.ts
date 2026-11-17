@@ -1,18 +1,31 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished } from 'vitest';
 import type { PersonalStatsDto, TripDetailDto } from '@fcs/shared';
 import { haversineKm, RoutingService } from '../src/stats/routing.service.js';
 import { COMUNI, createTestApp, createTrip, onboardedUser, resetDb, resetSpies, type ApiClient, type TestContext } from './helpers.js';
 
-const MILANO = { lat: 45.4642, lon: 9.19 };
-const MONZA = { lat: 45.5845, lon: 9.2744 };
-const SESTO = { lat: 45.5358, lon: 9.2386 };
-const BERGAMO = { lat: 45.6983, lon: 9.6773 };
-const LECCO = '097042'; // senza coordinate nel seed di test
+type LatLon = { lat: number; lon: number };
+// Coordinate lette dal DB di test: quelle di sviluppo del seed oppure quelle ISTAT, se presenti.
+let MILANO: LatLon;
+let MONZA: LatLon;
+let SESTO: LatLon;
+let BERGAMO: LatLon;
+const LECCO = '097042'; // le coordinate vengono tolte nel test che le richiede assenti
 
-/** Km stimati comune → sede di Milano (coefficiente stradale 1,3). */
-const est = (from: { lat: number; lon: number }) => Math.round(haversineKm(from, MILANO) * 1.3 * 1000) / 1000;
+async function loadCoords(ctx: TestContext): Promise<void> {
+  const get = async (istat: string) => {
+    const c = await ctx.prisma.comune.findUniqueOrThrow({ where: { istat } });
+    return { lat: c.lat!, lon: c.lon! };
+  };
+  MILANO = await get(COMUNI.MILANO);
+  MONZA = await get(COMUNI.MONZA);
+  SESTO = await get(COMUNI.SESTO_SG);
+  BERGAMO = await get(COMUNI.BERGAMO);
+}
+
+/** Km stimati comune → sede di Milano (coefficiente stradale 1,3; la sede usa le coordinate del suo comune). */
+const est = (from: LatLon) => Math.round(haversineKm(from, MILANO) * 1.3 * 1000) / 1000;
 
 describe('Statistiche: distanze, fatti anonimi e statistiche personali', () => {
   let ctx: TestContext;
@@ -22,6 +35,7 @@ describe('Statistiche: distanze, fatti anonimi e statistiche personali', () => {
 
   beforeAll(async () => {
     ctx = await createTestApp();
+    await loadCoords(ctx);
   });
   afterAll(async () => {
     await ctx.app.close();
@@ -111,6 +125,9 @@ describe('Statistiche: distanze, fatti anonimi e statistiche personali', () => {
   });
 
   it('senza coordinate il viaggio conta ma le metriche aggregate restano vuote', async () => {
+    const saved = await ctx.prisma.comune.findUniqueOrThrow({ where: { istat: LECCO } });
+    await ctx.prisma.comune.update({ where: { istat: LECCO }, data: { lat: null, lon: null } });
+    onTestFinished(() => ctx.prisma.comune.update({ where: { istat: LECCO }, data: { lat: saved.lat, lon: saved.lon } }).then(() => undefined));
     const trip = await createTrip(ctx, driver, { departureComune: COMUNI.BERGAMO, viaComuni: [LECCO] });
     const p = await join(trip, laura, LECCO);
     ctx.clock.set('2026-11-20T09:00:00.000Z');
@@ -148,6 +165,7 @@ describe('Routing con OSRM self-hosted', () => {
     await new Promise<void>((r) => osrm.listen(0, '127.0.0.1', r));
     const port = (osrm.address() as AddressInfo).port;
     ctx = await createTestApp({ ROUTING_PROVIDER: 'osrm', OSRM_URL: `http://127.0.0.1:${port}` });
+    await loadCoords(ctx);
   });
   afterAll(async () => {
     await ctx.app.close();
@@ -162,7 +180,10 @@ describe('Routing con OSRM self-hosted', () => {
     expect(await routing.comuneToSite(COMUNI.MONZA, siteId)).toEqual({ km: 21.346, estimated: false });
     expect(requested).toHaveLength(1);
     // Solo coordinate di comune e sede (lon,lat), nessun altro dato.
-    expect(requested[0]).toMatch(/^\/route\/v1\/driving\/9\.274400,45\.584500;9\.190000,45\.464200\?/);
+    const f6 = (x: number) => x.toFixed(6);
+    expect(requested[0]).toBe(
+      `/route/v1/driving/${f6(MONZA.lon)},${f6(MONZA.lat)};${f6(MILANO.lon)},${f6(MILANO.lat)}?overview=false&alternatives=false&steps=false`,
+    );
     await routing.comuneToSite(COMUNI.MONZA, siteId);
     expect(requested).toHaveLength(1); // dalla cache
 

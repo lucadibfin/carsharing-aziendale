@@ -36,7 +36,10 @@ Il servizio è fornito "così com'è". L'azienda non garantisce la disponibilit�
 ## 9. Privacy
 Il trattamento dei dati personali è descritto nell'Informativa privacy, consultabile in qualsiasi momento dall'app.
 
-## 10. Modifiche
+## 10. Fonti dei dati
+L'elenco dei comuni e i confini comunali usati per stimare le distanze nelle statistiche provengono da ISTAT (**Fonte: ISTAT**, licenza Creative Commons Attribuzione 4.0). I confini sono stati elaborati per ricavare un punto interno a ciascun comune. Le statistiche su km, CO2, carburante e costi sono **stime indicative**.
+
+## 11. Modifiche
 I termini possono essere aggiornati. La nuova versione andrà accettata al primo accesso successivo; in alternativa puoi cancellare il tuo account.
 
 *Versione 1 — [DA COMPILARE: data]*

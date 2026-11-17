@@ -76,7 +76,10 @@ import { AdminFiltersComponent } from './admin-filters.component';
           </table>
         </div>
       }
-      <p class="muted small">Dati aggregati e anonimi: nessun dato riconducibile ai singoli colleghi. Contano solo i viaggi chiusi dal conducente.</p>
+      <p class="muted small">
+        Dati aggregati e anonimi: nessun dato riconducibile ai singoli colleghi. Contano solo i viaggi chiusi dal conducente.
+        Distanze calcolate tra comuni e sedi a partire dai confini comunali (Fonte: ISTAT, CC BY 4.0).
+      </p>
     }
   `,
   styles: `

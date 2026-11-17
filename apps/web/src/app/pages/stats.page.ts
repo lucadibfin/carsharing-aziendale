@@ -52,7 +52,7 @@ import { ToastService } from '../core/toast.service';
             ({{ t.kmAvoided | number: '1.0-0' }} km evitati), dal comune di salita alla sede.
             Come conducente vedi quelli dei tuoi passeggeri. Consumo ed emissioni sono quelli dell'auto del
             conducente se li ha indicati, altrimenti valori medi.
-            @if (s.anyEstimated) { Alcune distanze sono stimate in linea d'aria e non calcolate su strada. }
+            @if (s.anyEstimated) { Le distanze sono stimate in linea d'aria tra i comuni (Fonte: ISTAT) e le sedi, non calcolate su strada. }
           </p>
         }
       }

@@ -22,8 +22,15 @@ import { MarkdownPipe } from '../shared/markdown.pipe';
       } @else if (unauth()) {
         <p class="muted">Accedi per consultare l'informativa completa e i termini d'uso.</p>
       }
+      <h2 class="section-title">Fonti dei dati</h2>
+      <p class="muted sources">
+        Elenco dei comuni e confini comunali: <strong>Fonte: ISTAT</strong>, rilasciati con licenza
+        Creative Commons Attribuzione 4.0 (CC BY 4.0). I confini sono stati elaborati per ricavare un punto interno a
+        ciascun comune, usato solo per stimare le distanze tra comuni e sedi nelle statistiche.
+      </p>
     </div>
   `,
+  styles: `.sources { font-size: 0.9em; }`,
 })
 export class PoliciesPage implements OnInit {
   private readonly api = inject(ApiService);

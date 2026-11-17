@@ -1,5 +1,8 @@
 // Importa le coordinate (centroide o sede municipale) dei comuni da un file CSV.
-// Formato: intestazione "istat;lat;lon", separatore ";" e punto decimale. Es.:
+// Per i confini ISTAT c'è lo script dedicato (npm run coords:istat -w api), il cui
+// risultato è caricato direttamente dal seed: questo serve per altre fonti.
+// Formato: intestazione "istat;lat;lon", separatore ";" e punto decimale; righe
+// che iniziano con "#" ignorate. Es.:
 //   istat;lat;lon
 //   015146;45.4642;9.1900
 // Uso: npm run db:import-coords -w api -- <percorso del file CSV>
@@ -20,10 +23,11 @@ if (!file) {
   process.exit(1);
 }
 
-const rows = readFileSync(resolve(process.cwd(), file), 'utf8')
+const rows = readFileSync(resolve(process.env.INIT_CWD ?? process.cwd(), file), 'utf8')
   .replace(/^﻿/, '')
   .trim()
   .split(/\r?\n/)
+  .filter((l) => !l.startsWith('#')) // righe di commento (es. attribuzione della fonte)
   .slice(1)
   .map((l, i) => {
     const [istat, lat, lon] = l.split(';').map((x) => x.trim());

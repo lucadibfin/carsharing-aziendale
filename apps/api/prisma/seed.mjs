@@ -1,7 +1,7 @@
 // Seed idempotente: comuni ISTAT, testi legali v1 (bozze), parametri di default
 // e, solo fuori produzione, alcune sedi di esempio.
 // Uso: npm run db:seed -w api
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import pg from 'pg';
 
@@ -43,6 +43,34 @@ try {
   await client.query(`UPDATE "Comune" SET active = false WHERE NOT (istat = ANY($1))`, [codes]);
   console.log(`Comuni: ${lines.length}`);
 
+  // --- Coordinate dei comuni (Fonte: ISTAT, confini comunali, CC BY 4.0) ---
+  // Generato con: npm run coords:istat -w api -- <confini> (vedi docs/distanze.md).
+  // Si aggiornano solo i comuni il cui punto è cambiato, e per quelli si
+  // invalidano le distanze già calcolate.
+  const coordFile = resolve(import.meta.dirname, 'data/comuni-coordinate.csv');
+  if (existsSync(coordFile)) {
+    const coords = readFileSync(coordFile, 'utf8')
+      .split(/\r?\n/)
+      .filter((l) => l && !l.startsWith('#'))
+      .slice(1)
+      .map((l) => l.split(';'));
+    let changed = 0;
+    for (let i = 0; i < coords.length; i += BATCH) {
+      const chunk = coords.slice(i, i + BATCH);
+      const values = chunk.map((_, j) => `($${j * 3 + 1}, $${j * 3 + 2}::float8, $${j * 3 + 3}::float8)`).join(',');
+      const r = await client.query(
+        `UPDATE "Comune" c SET lat = v.lat, lon = v.lon FROM (VALUES ${values}) AS v(istat, lat, lon)
+         WHERE c.istat = v.istat AND (c.lat IS DISTINCT FROM v.lat OR c.lon IS DISTINCT FROM v.lon)
+         RETURNING c.istat`,
+        chunk.flat(),
+      );
+      changed += r.rowCount ?? 0;
+      if (r.rowCount) await client.query(`DELETE FROM "DistanceCache" WHERE "comuneIstat" = ANY($1)`, [r.rows.map((x) => x.istat)]);
+    }
+    const missing = await client.query('SELECT count(*)::int AS n FROM "Comune" WHERE active AND lat IS NULL');
+    console.log(`Coordinate ISTAT: ${coords.length} comuni, ${changed} aggiornati; comuni attivi senza coordinate: ${missing.rows[0].n}`);
+  }
+
   // --- Testi legali v1 ---
   // In produzione si inseriscono solo se assenti (una versione pubblicata non cambia mai:
   // le modifiche diventano una nuova versione). In sviluppo la bozza v1 si riallinea ai file.
@@ -77,9 +105,8 @@ try {
     }
     console.log('Sedi di esempio create (solo sviluppo)');
 
-    // Coordinate approssimative (centro del comune) di alcuni comuni, per provare le
-    // statistiche senza aver importato il dataset completo (vedi docs/distanze.md).
-    // Non sovrascrivono coordinate già importate.
+    // Ripiego per lo sviluppo finché non c'è comuni-coordinate.csv: coordinate
+    // approssimative di alcuni comuni. Non sovrascrivono quelle già presenti.
     const devCoords = [
       ['015146', 45.4642, 9.19], // Milano
       ['108033', 45.5845, 9.2744], // Monza
