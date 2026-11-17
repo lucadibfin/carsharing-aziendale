@@ -50,10 +50,11 @@ describe('Seed: aggiornamento dell’elenco dei comuni', () => {
     for (const c of OLD_COMUNI) {
       await ctx.prisma.comune.upsert({ where: { istat: c.istat }, create: { ...c, active: true }, update: { ...c, active: true } });
     }
-    // Prima dell'aggiornamento: Laura risiede ad Alghero (vecchio codice sardo), Mario ha un
-    // viaggio che parte da Castegnero (poi fuso) con salita a Nanto, Anna risiede a Lirio
-    // (poi incorporato) e ha un viaggio che parte da lì.
+    // Prima dell'aggiornamento: Laura risiede ad Alghero (vecchio codice sardo), Mario risiede
+    // a Nanto e ha un viaggio che parte da Castegnero (poi fusi) con salita a Nanto, Anna
+    // risiede a Lirio (poi incorporato) e ha un viaggio che parte da lì.
     mario = await onboardedUser(ctx, 'mario.rossi');
+    await mario.patch('/profile', { comuneIstat: '024071' });
     const laura = await onboardedUser(ctx, 'laura.bianchi');
     lauraId = laura.userId;
     await laura.patch('/profile', { comuneIstat: '090003' });
@@ -119,13 +120,23 @@ describe('Seed: aggiornamento dell’elenco dei comuni', () => {
     expect(await ctx.prisma.comune.findUniqueOrThrow({ where: { istat: '112001' } })).toMatchObject({ active: true, lat: 40.558 });
   });
 
-  it('fusione: il nuovo comune è selezionabile con le coordinate calcolate; i comuni d’origine restano per i viaggi esistenti', async () => {
+  it('ricodifica: nessun avviso (cambia solo il codice, non il nome)', async () => {
+    expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id: lauraId } })).comuneChangedFrom).toBeNull();
+  });
+
+  it('fusione: profilo, tappe e salita passano a Castegnero Nanto; le tappe doppie si accorpano; i comuni d’origine restano non selezionabili', async () => {
+    expect(seedOutput).toMatch(/Fusione applicata: 024027 → 024129 Castegnero Nanto; righe aggiornate: \{"TripStop":1\}/);
+    expect(seedOutput).toMatch(/Fusione applicata: 024071 → 024129 Castegnero Nanto; righe aggiornate: \{"User":1,"TripStop":1,"TripParticipant":1\}/);
     expect(await ctx.prisma.comune.findUniqueOrThrow({ where: { istat: '024129' } })).toMatchObject({ active: true, lat: 45.4367 });
-    expect(await ctx.prisma.comune.findUniqueOrThrow({ where: { istat: '024027' } })).toMatchObject({ active: false });
+    expect(await ctx.prisma.comune.findUniqueOrThrow({ where: { istat: '024027' } })).toMatchObject({ active: false, lat: 45.437 });
     const found = (await mario.get('/comuni').query({ q: 'Castegnero' })).body as ComuneDto[];
     expect(found.map((c) => c.istat)).toEqual(['024129']);
+    // Castegnero → Nanto → Monza diventa Castegnero Nanto → Monza.
     const trip = (await mario.get(`/trips/${tripId}`)).body as TripDetailDto;
-    expect(trip.stops.map((s) => s.comuneName)).toEqual(['Castegnero', 'Nanto', 'Monza']);
+    expect(trip.stops.map((s) => s.comuneName)).toEqual(['Castegnero Nanto', 'Monza']);
+    expect(trip.stops.map((s) => s.order)).toEqual([0, 1]);
+    const boarding = await ctx.prisma.tripParticipant.findFirstOrThrow({ where: { userId: lauraId } });
+    expect(boarding.boardingComune).toBe('024129');
   });
 
   it('incorporazione (Lirio → Montalto Pavese): profilo e viaggio spostati; Lirio resta, non selezionabile', async () => {
@@ -138,10 +149,21 @@ describe('Seed: aggiornamento dell’elenco dei comuni', () => {
     expect((await mario.get('/comuni').query({ q: 'Lirio' })).body as ComuneDto[]).toEqual([]);
   });
 
+  it('avviso al prossimo accesso per fusione e incorporazione; si chiude e non ricompare', async () => {
+    expect((await mario.get('/me')).body.comuneNotice).toEqual({ from: 'Nanto', to: 'Castegnero Nanto' });
+    expect((await anna.get('/me')).body.comuneNotice).toEqual({ from: 'Lirio', to: 'Montalto Pavese' });
+    expect((await mario.delete('/me/comune-notice')).status).toBe(204);
+    expect((await mario.get('/me')).body.comuneNotice).toBeNull();
+    // Scegliendo il comune dal profilo, l'avviso non serve più.
+    await anna.patch('/profile', { comuneIstat: COMUNI.MONZA });
+    expect((await anna.get('/me')).body.comuneNotice).toBeNull();
+  });
+
   it('il seed rilanciato con gli stessi dati non cambia nulla', () => {
     const again = runSeed(dir);
     expect(again).not.toContain('Ricodifiche applicate');
     expect(again).not.toContain('Incorporazione applicata');
+    expect(again).not.toContain('Fusione applicata');
     expect(again).toMatch(/0 aggiornati; comuni attivi senza coordinate: \d+/);
   });
 });

@@ -94,15 +94,16 @@ I comuni cambiati nel frattempo sono gestiti così:
 | Caso | Esempio | Come viene gestito |
 |---|---|---|
 | **Ricodifica** (stesso comune, codice nuovo) | Comuni sardi dopo la riorganizzazione delle province | Riconosciuta da `comuni:istat` (stesso codice catastale o stessa denominazione nella stessa regione) e registrata in `comuni-ricodifiche.csv`. Il seed sposta profili, sedi, tappe e comuni di salita sul nuovo codice ed elimina il vecchio |
-| **Fusione** dopo la data dei confini | Castegnero + Nanto → Castegnero Nanto (2026) | Registrata in `comuni-variazioni.csv` (tipo `FUSIONE`) con i codici d'origine. `comuni:istat` la riconosce da solo quando il nome nuovo è composto dai nomi dei comuni spariti della stessa provincia; altrimenti la segnala con i possibili comuni d'origine. `coords:istat` calcola il **punto interno all'unione dei territori d'origine** presenti nei confini |
-| **Distacco** di territorio (comune nuovo ricavato da uno esistente) | — | `coords:istat` lo segnala come "senza coordinate" con una proposta. Si aggiunge a mano una riga `APPROSSIMATO` con il comune d'origine: le coordinate sono quelle del comune d'origine, una stima da sostituire quando i confini dell'anno dopo includeranno il comune nuovo |
+| **Fusione** dopo la data dei confini | Castegnero + Nanto → Castegnero Nanto (2026) | Registrata in `comuni-variazioni.csv` (tipo `FUSIONE`) con i codici d'origine. `comuni:istat` la riconosce da solo quando il nome nuovo è composto dai nomi dei comuni spariti della stessa provincia; altrimenti la segnala con i possibili comuni d'origine. `coords:istat` calcola il **punto interno all'unione dei territori d'origine** presenti nei confini. Il seed sposta profili, sedi, tappe e comuni di salita sul nuovo comune |
+| **Distacco** di territorio (comune nuovo ricavato da uno esistente) | — | **Unico caso da gestire a mano.** `coords:istat` lo segnala come "senza coordinate" con una proposta. Si aggiunge a mano una riga `APPROSSIMATO` con il comune d'origine: le coordinate sono quelle del comune d'origine, una stima da sostituire quando i confini dell'anno dopo includeranno il comune nuovo. Profili e viaggi non vengono spostati: il comune d'origine esiste ancora, e solo l'utente sa se abita nella parte staccata |
 | **Incorporazione** (fusione per incorporazione) in un comune esistente | Lirio → Montalto Pavese (L.R. Lombardia n. 1 del 28/01/2026, dal 31/01/2026) | L'incorporante mantiene nome e codice. L'elenco vigente non dice quale sia: `comuni:istat` segnala il comune soppresso come **"INCORPORANTE DA INDICARE"** e `coords:istat` propone i comuni confinanti. Si indica con `--incorporazione <soppresso>=<incorporante>` e viene registrata in `comuni-variazioni.csv` (tipo `INCORPORAZIONE`). Coordinate dell'incorporante: **punto interno all'unione dei territori** finché i confini contengono ancora l'incorporato. Il seed sposta profili, sedi, tappe e comuni di salita sull'incorporante, come per le ricodifiche |
 | **Cambio di nome** | Vallecrosia → Vallecrosia al mare | Il seed aggiorna il nome |
 
-Che cosa resta nel database:
-- **ricodifiche**: il vecchio codice viene eliminato, dopo aver spostato tutti i riferimenti;
-- **incorporazioni**: il comune incorporato resta come **soppresso e non selezionabile**, con le sue coordinate, ma nessun profilo, sede o viaggio lo usa più;
-- **fusioni**: i comuni d'origine restano come non selezionabili, con le loro coordinate; profili e viaggi che li usano restano validi e l'utente può scegliere il nuovo comune dal profilo.
+Che cosa succede nel database:
+- **ricodifiche**: il vecchio codice viene eliminato, dopo aver spostato tutti i riferimenti. Nessun avviso all'utente: cambia solo il codice, non il nome;
+- **fusioni e incorporazioni**: profili, sedi, tappe e comuni di salita passano al comune risultante. I comuni d'origine restano come **soppressi e non selezionabili**, con le loro coordinate, ma nessun riferimento li usa più.
+  - Se un percorso passava da due comuni poi fusi (es. Castegnero → Nanto), le due tappe diventano una sola.
+  - Gli utenti il cui comune è cambiato vedono al successivo accesso un avviso discreto, che si chiude con un tocco: "Il tuo comune Castegnero è ora Castegnero Nanto". L'avviso sparisce anche se l'utente sceglie un altro comune dal profilo.
 
 Formato di `comuni-variazioni.csv` (le righe si possono correggere a mano: gli script non le riscrivono):
 ```
@@ -129,10 +130,10 @@ Una volta l'anno quando escono i nuovi confini, oppure quando una variazione rig
    - Deve chiudersi con **"Comuni dell'elenco senza coordinate: 0"**.
    - Se resta qualche comune, lo script lo elenca con una proposta. Si completa `comuni-variazioni.csv` e si ripete.
    - Se un codice dei confini non è nell'elenco e non è registrato, lo script elenca i comuni confinanti come possibili incorporanti.
-6. `npm run db:seed`, che applica ricodifiche, incorporazioni, nuovi comuni, nomi e coordinate.
+6. `npm run db:seed`, che applica ricodifiche, fusioni, incorporazioni, nuovi comuni, nomi e coordinate.
 7. Committare insieme `comuni.csv`, `comuni-ricodifiche.csv`, `comuni-variazioni.csv` e `comuni-coordinate.csv`.
 
-Quando escono i confini dell'anno successivo, i comuni nati da fusione o distacco vi compaiono con il proprio poligono, e il poligono degli incorporanti comprende già il territorio incorporato. `coords:istat` usa allora direttamente quelli e le righe di `comuni-variazioni.csv` non servono più per quei comuni. Possono restare come storico; per le incorporazioni restano utili al seed, che sposta sull'incorporante eventuali riferimenti rimasti al comune soppresso.
+Quando escono i confini dell'anno successivo, i comuni nati da fusione o distacco vi compaiono con il proprio poligono, e il poligono degli incorporanti comprende già il territorio incorporato. `coords:istat` usa allora direttamente quelli e le righe di `comuni-variazioni.csv` non servono più per quei comuni. Possono restare come storico; per fusioni e incorporazioni restano utili al seed, che sposta sul comune risultante eventuali riferimenti rimasti ai comuni soppressi.
 
 **Altri file.** Per coordinate da altre fonti resta `npm run db:import-coords -w api -- file.csv` (formato `istat;lat;lon`), che però non aggiorna il CSV versionato.
 

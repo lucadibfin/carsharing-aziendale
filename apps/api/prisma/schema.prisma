@@ -173,6 +173,9 @@ model User {
   status              UserStatus @default(ACTIVE)
   siteId              String?    @db.Uuid
   comuneIstat         String?    @db.Char(6)
+  /// Nome del comune precedente quando il seed ha cambiato il comune per fusione o
+  /// incorporazione: l'utente vede un avviso finché non lo chiude (poi torna null).
+  comuneChangedFrom   String?
   /// Telefono cifrato (facoltativo).
   phoneEnc            String?
   /// Email per le notifiche (aziendale o personale), cifrata. Solo indirizzi verificati

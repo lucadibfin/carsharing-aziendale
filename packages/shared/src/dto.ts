@@ -38,6 +38,11 @@ export interface MeDto {
   pendingPolicyIds: string[];
   /** true se l'utente ha un indirizzo email verificato (richiesto per completare il primo accesso). */
   emailVerified: boolean;
+  /**
+   * Il comune del profilo è stato cambiato d'ufficio per fusione o incorporazione
+   * (es. Castegnero → Castegnero Nanto). Avviso da mostrare finché l'utente non lo chiude.
+   */
+  comuneNotice: { from: string; to: string } | null;
 }
 
 /** Stato dell'email per le notifiche (visibile solo all'interessato). */

@@ -19,7 +19,7 @@ L'uso dell'app è **del tutto volontario**. Chi non la usa, smette di usarla o c
 | Categoria | Dati | Origine |
 |---|---|---|
 | Identificazione | Username aziendale, nome e cognome | Sistema di autenticazione aziendale, al login |
-| Profilo | Sede di riferimento, comune di residenza (solo il comune, **mai l'indirizzo**) | Inseriti dall'utente |
+| Profilo | Sede di riferimento, comune di residenza (solo il comune, **mai l'indirizzo**) | Inseriti dall'utente. Se il comune viene fuso con altri o incorporato in un altro comune, lo aggiorniamo noi al nuovo comune e te lo segnaliamo al primo accesso |
 | Contatto (facoltativo) | Numero di telefono | Inserito dall'utente |
 | Auto (facoltativo) | Tipo di alimentazione, consumo medio | Inseriti dall'utente |
 | Viaggi | Viaggi proposti o a cui si partecipa: data, orari, sede, comuni di partenza e di passaggio, punto d'incontro descritto a testo, posti, note, presenza confermata | Generati dall'uso dell'app |

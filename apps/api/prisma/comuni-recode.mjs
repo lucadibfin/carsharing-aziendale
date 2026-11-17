@@ -7,8 +7,10 @@
 // `npm run comuni:istat` e applicato dal seed: profili, sedi, tappe dei viaggi e
 // comuni di salita passano al nuovo codice e il vecchio viene eliminato.
 //
-// Le incorporazioni (righe INCORPORAZIONE di data/comuni-variazioni.csv) spostano i
-// riferimenti allo stesso modo, ma il comune incorporato resta nel DB, non selezionabile.
+// Fusioni e incorporazioni (righe FUSIONE e INCORPORAZIONE di data/comuni-variazioni.csv)
+// spostano i riferimenti allo stesso modo, ma i comuni d'origine restano nel DB, non
+// selezionabili, e gli utenti spostati vedono un avviso (il nome del comune cambia).
+// Le ricodifiche non danno avviso: cambia solo il codice.
 import { existsSync, readFileSync } from 'node:fs';
 
 /**
@@ -62,41 +64,79 @@ export async function applyRecodings(client, recodings) {
   return done;
 }
 
-/** Sposta profili, sedi, tappe e comuni di salita da un codice all'altro; le distanze in cache si ricalcolano. */
-async function moveReferences(client, from, to) {
+/**
+ * Sposta profili, sedi, tappe e comuni di salita da un codice all'altro; le distanze
+ * in cache si ricalcolano. Con `noticeFrom` (nome del comune di partenza) gli utenti
+ * spostati vedono un avviso al prossimo accesso: se ne avevano già uno, resta il nome
+ * originale (es. A fuso in B, poi B incorporato in C → "A è ora C").
+ */
+async function moveReferences(client, from, to, noticeFrom = null) {
   const moved = {};
   for (const { table, column } of COMUNE_COLUMNS) {
     if (table === 'DistanceCache') {
-      // Chiave diversa (e, per le incorporazioni, punto diverso): si ricalcola al primo uso.
+      // Chiave diversa (e, per fusioni e incorporazioni, punto diverso): si ricalcola al primo uso.
       await client.query(`DELETE FROM "DistanceCache" WHERE "comuneIstat" = $1`, [from]);
       continue;
     }
-    const u = await client.query(`UPDATE "${table}" SET "${column}" = $2 WHERE "${column}" = $1`, [from, to]);
+    const u =
+      table === 'User' && noticeFrom
+        ? await client.query(
+            `UPDATE "User" SET "comuneIstat" = $2, "comuneChangedFrom" = COALESCE("comuneChangedFrom", $3) WHERE "comuneIstat" = $1`,
+            [from, to, noticeFrom],
+          )
+        : await client.query(`UPDATE "${table}" SET "${column}" = $2 WHERE "${column}" = $1`, [from, to]);
     if (u.rowCount) moved[table] = u.rowCount;
   }
+  if (moved.TripStop) await mergeDuplicateStops(client, to);
   return moved;
 }
 
 /**
- * Incorporazioni (righe INCORPORAZIONE di comuni-variazioni.csv): profili, sedi,
- * tappe e comuni di salita passano dal comune incorporato all'incorporante, come per
- * le ricodifiche. A differenza delle ricodifiche il comune incorporato NON viene
- * eliminato: resta nel DB, con le sue coordinate, e il seed lo rende non
- * selezionabile perché non è più nell'elenco. Idempotente.
- * Restituisce le incorporazioni applicate per la prima volta (incorporato ancora
+ * Dopo una fusione un percorso può passare due volte dallo stesso comune
+ * (Castegnero → Nanto diventa Castegnero Nanto → Castegnero Nanto): si tiene la
+ * prima tappa e si rinumerano le altre senza buchi.
+ */
+async function mergeDuplicateStops(client, comune) {
+  const del = await client.query(
+    `DELETE FROM "TripStop" a USING "TripStop" b
+     WHERE a."seriesId" = b."seriesId" AND a."comuneIstat" = $1 AND b."comuneIstat" = $1 AND a."order" > b."order"
+     RETURNING a."seriesId"`,
+    [comune],
+  );
+  const series = [...new Set(del.rows.map((r) => r.seriesId))];
+  if (!series.length) return;
+  // Due passaggi per non violare l'unicità (seriesId, order) durante la rinumerazione.
+  await client.query(
+    `UPDATE "TripStop" t SET "order" = -1 - r.rn FROM (
+       SELECT id, (row_number() OVER (PARTITION BY "seriesId" ORDER BY "order") - 1)::int AS rn
+       FROM "TripStop" WHERE "seriesId" = ANY($1::uuid[])
+     ) r WHERE t.id = r.id`,
+    [series],
+  );
+  await client.query(`UPDATE "TripStop" SET "order" = -1 - "order" WHERE "seriesId" = ANY($1::uuid[])`, [series]);
+}
+
+/**
+ * Fusioni e incorporazioni (righe FUSIONE e INCORPORAZIONE di comuni-variazioni.csv):
+ * profili, sedi, tappe e comuni di salita passano dai comuni d'origine al comune
+ * risultante, come per le ricodifiche, e gli utenti spostati ricevono un avviso.
+ * A differenza delle ricodifiche i comuni d'origine NON vengono eliminati: restano
+ * nel DB, con le loro coordinate, e il seed li rende non selezionabili perché non
+ * sono più nell'elenco. Idempotente.
+ * Restituisce gli spostamenti applicati per la prima volta (comune d'origine ancora
  * attivo) o che hanno spostato qualche riga.
  * @param {import('pg').Client} client
  */
-export async function applyIncorporations(client, variations) {
+export async function applyMerges(client, variations) {
   const done = [];
-  for (const v of variations.filter((x) => x.type === 'INCORPORAZIONE')) {
+  for (const v of variations.filter((x) => x.type === 'FUSIONE' || x.type === 'INCORPORAZIONE')) {
     for (const from of v.origins.filter((o) => o !== v.code)) {
-      const old = await client.query('SELECT active FROM "Comune" WHERE istat = $1', [from]);
+      const old = await client.query('SELECT name, active FROM "Comune" WHERE istat = $1', [from]);
       if (old.rowCount === 0) continue;
       const target = await client.query('SELECT 1 FROM "Comune" WHERE istat = $1', [v.code]);
-      if (target.rowCount === 0) throw new Error(`Incorporazione ${from} → ${v.code}: l'incorporante non è nell'elenco dei comuni`);
-      const moved = await moveReferences(client, from, v.code);
-      if (old.rows[0].active || Object.keys(moved).length) done.push({ from, to: v.code, name: v.name, moved });
+      if (target.rowCount === 0) throw new Error(`${v.type} ${from} → ${v.code}: il comune risultante non è nell'elenco dei comuni`);
+      const moved = await moveReferences(client, from, v.code, old.rows[0].name);
+      if (old.rows[0].active || Object.keys(moved).length) done.push({ type: v.type, from, to: v.code, name: v.name, moved });
     }
   }
   return done;

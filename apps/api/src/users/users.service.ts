@@ -21,6 +21,10 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { roles: true } });
     if (!user) throw NotFound('Utente');
     const pending = await this.policies.pendingFor(userId);
+    const current =
+      user.comuneChangedFrom && user.comuneIstat
+        ? await this.prisma.comune.findUnique({ where: { istat: user.comuneIstat }, select: { name: true } })
+        : null;
     return {
       id: user.id,
       firstName: user.firstName,
@@ -31,7 +35,13 @@ export class UsersService {
       onboardingRequired: !user.onboardedAt || !user.emailVerifiedAt || pending.length > 0,
       pendingPolicyIds: pending,
       emailVerified: Boolean(user.emailVerifiedAt),
+      comuneNotice: user.comuneChangedFrom && current ? { from: user.comuneChangedFrom, to: current.name } : null,
     };
+  }
+
+  /** L'utente ha chiuso l'avviso sul cambio del comune. */
+  async dismissComuneNotice(userId: string): Promise<void> {
+    await this.prisma.user.update({ where: { id: userId }, data: { comuneChangedFrom: null } });
   }
 
   async profile(userId: string): Promise<ProfileDto> {
@@ -97,6 +107,8 @@ export class UsersService {
       data: {
         siteId: input.siteId,
         comuneIstat: input.comuneIstat,
+        // Se l'utente sceglie lui il comune, l'avviso sul cambio d'ufficio non serve più.
+        comuneChangedFrom: input.comuneIstat ? null : undefined,
         phoneEnc: input.phone === undefined ? undefined : this.crypto.encryptNullable(input.phone),
         fuelType: input.fuelType,
         consumptionPer100km: input.consumptionPer100km,

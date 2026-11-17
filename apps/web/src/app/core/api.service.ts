@@ -85,6 +85,7 @@ export class ApiService {
   confirmEmail = (code: string) => this.post<EmailStatusDto>('/profile/email/confirm', { code });
   cancelPendingEmail = () => this.delete<EmailStatusDto>('/profile/email/pending');
 
+  dismissComuneNotice = () => this.delete<void>('/me/comune-notice');
   myData = () => this.get<Record<string, unknown>>('/me/data');
   deleteAccount = () => this.delete<void>('/me');
 

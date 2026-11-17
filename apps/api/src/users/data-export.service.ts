@@ -94,6 +94,8 @@ export class DataExportService {
         ultimaVerificaDipendente: iso(u.lastVerifiedAt),
         sede: u.site?.name ?? null,
         comuneDiResidenza: await comuneName(u.comuneIstat),
+        // Avviso non ancora chiuso: comune precedente, cambiato per fusione o incorporazione.
+        comunePrecedenteDaAvvisare: u.comuneChangedFrom,
         telefono: this.crypto.decryptNullable(u.phoneEnc),
         auto: { alimentazione: u.fuelType, consumoOgni100km: u.consumptionPer100km },
         ruoli: u.roles.map((r) => ({ ruolo: r.role, sede: r.site?.name ?? null, dal: iso(r.createdAt) })),

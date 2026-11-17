@@ -69,6 +69,13 @@ export class UsersController {
     return this.users.updateProfile(u.userId, body);
   }
 
+  /** Chiude l'avviso "il tuo comune è ora …" (fusione o incorporazione). */
+  @Delete('me/comune-notice')
+  @HttpCode(204)
+  async dismissComuneNotice(@CurrentUser() u: SessionUser): Promise<void> {
+    await this.users.dismissComuneNotice(u.userId);
+  }
+
   @Patch('profile/consents')
   updateConsents(@CurrentUser() u: SessionUser, @Body({ schema: updateConsentsSchema }) body: UpdateConsentsInput) {
     return this.users.updateConsents(u.userId, body);

@@ -25,7 +25,7 @@
 | Dato | Tabella | Protezione | Visibile a |
 |---|---|---|---|
 | Username, nome, cognome | `User` | — | Interessato; altri utenti nei viaggi comuni; admin solo in segnalazioni e ruoli |
-| Sede, comune di residenza (no indirizzo) | `User` | — | Interessato; il comune **non** è mostrato ad altri (si vede solo il comune di salita scelto per un viaggio) |
+| Sede, comune di residenza (no indirizzo) | `User` | — | Interessato; il comune **non** è mostrato ad altri (si vede solo il comune di salita scelto per un viaggio). Aggiornato d'ufficio se il comune viene fuso o incorporato, con avviso all'utente (par. 12, C5) |
 | Telefono (facoltativo) | `User.phoneEnc` | AES-256-GCM | Partecipanti confermati dello stesso viaggio, solo con consenso |
 | Email per le notifiche | `User.emailEnc` | AES-256-GCM | Solo l'interessato; usata solo per l'invio |
 | Codice di verifica email | `EmailVerification.codeHash` | HMAC-SHA256, scade dopo 15 minuti | Nessuno |
@@ -257,3 +257,4 @@ L'app funziona oggi così. Se il DPO decide diversamente, la modifica è puntual
 | C2 | Distanze **stimate** in linea d'aria × 1,3 (configurabile), senza servizi di routing | 17/11/2026 |
 | C3 | Valori di consumi, emissioni e prezzi **indicativi**, con fonti di riferimento ISPRA e Ministero delle Imprese e del Made in Italy | 17/11/2026 |
 | C4 | Classificazione delle notifiche (essenziali / operative / facoltative) approvata dal committente | 13/11/2026 |
+| C5 | Comune soppresso per **fusione o incorporazione**: il comune del profilo (e quello di sedi e viaggi) viene aggiornato d'ufficio al comune risultante, per esattezza dei dati (art. 5.1.d). L'utente vede un avviso al successivo accesso e può scegliere un altro comune. Per le sole ricodifiche (cambia il codice, non il nome) nessun avviso | 17/11/2026 |

@@ -6,7 +6,8 @@
 //   018094;Montalto Pavese;INCORPORAZIONE;018082+018094;17/11/2026;incorporazione di Lirio
 //
 // tipo FUSIONE        → comune NUOVO (codice nuovo): coordinate = punto interno
-//                       all'unione dei territori d'origine.
+//                       all'unione dei territori d'origine; il seed sposta profili, sedi
+//                       e viaggi dai comuni d'origine al nuovo comune.
 // tipo INCORPORAZIONE → comune ESISTENTE che ne incorpora altri: codice = incorporante,
 //                       origini = incorporante + incorporati. Finché i confini contengono
 //                       ancora gli incorporati, coordinate = punto interno all'unione dei

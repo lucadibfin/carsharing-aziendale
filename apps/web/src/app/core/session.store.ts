@@ -34,6 +34,18 @@ export class SessionStore {
     return cur === undefined ? this.refresh() : cur;
   }
 
+  /** Chiude l'avviso sul cambio del comune: sparisce subito, anche se la chiamata fallisce. */
+  async dismissComuneNotice(): Promise<void> {
+    const me = this.me();
+    if (!me?.comuneNotice) return;
+    this.me.set({ ...me, comuneNotice: null });
+    try {
+      await this.api.dismissComuneNotice();
+    } catch {
+      // Ricomparirà al prossimo accesso: nessun danno.
+    }
+  }
+
   clear(): void {
     this.me.set(null);
   }
