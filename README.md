@@ -69,7 +69,7 @@ Servono tre terminali.
 npm run db:start
 
 # terminale 2: migrazioni, dati di riferimento, dati di esempio, API
-npm run db:migrate     # applica le migrazioni mancanti
+npm run db:migrate     # applica le migrazioni mancanti e rigenera il client Prisma
 npm run db:seed        # comuni, sedi, testi legali (idempotente)
 npm run db:demo        # FACOLTATIVO: dati di esempio (vedi sotto). Cancella utenti e viaggi esistenti!
 npm run dev:api        # API su http://127.0.0.1:3000
