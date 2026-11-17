@@ -2,18 +2,16 @@ import { Component, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { SessionStore } from './core/session.store';
+import { NoticeBannerComponent } from './shared/notice-banner.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatIconModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatIconModule, NoticeBannerComponent],
   template: `
     @if (session.ready() && session.me()?.comuneNotice; as notice) {
-      <div class="comune-notice" role="status">
-        <span>Il tuo comune {{ notice.from }} è ora <strong>{{ notice.to }}</strong>.</span>
-        <button type="button" (click)="session.dismissComuneNotice()" aria-label="Chiudi l'avviso">
-          <mat-icon svgIcon="close" />
-        </button>
-      </div>
+      <app-notice-banner class="comune-notice" (closed)="session.dismissComuneNotice()">
+        Il tuo comune {{ notice.from }} è ora <strong>{{ notice.to }}</strong>.
+      </app-notice-banner>
     }
     <main>
       <router-outlet />
@@ -30,18 +28,6 @@ import { SessionStore } from './core/session.store';
     }
   `,
   styles: `
-    .comune-notice {
-      display: flex; align-items: center; gap: 8px;
-      padding: 6px 4px 6px 16px; padding-top: calc(6px + env(safe-area-inset-top));
-      background: var(--mat-sys-secondary-container); color: var(--mat-sys-on-secondary-container);
-      font: var(--mat-sys-body-medium);
-    }
-    .comune-notice span { flex: 1; }
-    .comune-notice button {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 40px; height: 40px; border: 0; border-radius: 50%;
-      background: transparent; color: inherit; cursor: pointer;
-    }
     .bottom-nav {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
       display: flex; justify-content: space-around;

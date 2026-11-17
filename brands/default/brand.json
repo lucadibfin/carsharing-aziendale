@@ -1,0 +1,43 @@
+{
+  "id": "default",
+  "appName": "Car Sharing tra colleghi",
+  "shortName": "CarSharing",
+  "description": "Condividi l'auto nel tragitto casa-lavoro con i colleghi della tua sede",
+  "tagline": "Condividi il tragitto casa-lavoro con i colleghi della tua sede.",
+  "logo": "logo.svg",
+  "logoMono": "logo-mono.svg",
+  "colors": {
+    "light": {
+      "primary": "#1b5e20",
+      "secondary": "#54634d",
+      "accent": "#005cbb",
+      "neutralChroma": 6
+    }
+  },
+  "icons": {
+    "background": "#1b5e20",
+    "padding": 0.02
+  },
+  "font": {
+    "family": "Roboto",
+    "fallback": "'Helvetica Neue', Arial, sans-serif",
+    "weights": { "regular": 400, "medium": 500, "bold": 700 },
+    "files": [
+      { "weight": 400, "file": "fonts/roboto-latin-400-normal.woff2" },
+      { "weight": 500, "file": "fonts/roboto-latin-500-normal.woff2" },
+      { "weight": 700, "file": "fonts/roboto-latin-700-normal.woff2" }
+    ],
+    "license": "fonts/LICENSE.txt"
+  },
+  "shape": { "button": "pill", "card": 12, "field": 4, "chip": 8, "dialog": 28 },
+  "card": "outlined",
+  "elevation": "soft",
+  "email": {
+    "senderName": "Car Sharing",
+    "signature": "Questo messaggio è stato inviato automaticamente dall'app Car Sharing tra colleghi. Puoi scegliere quali notifiche ricevere dal tuo profilo."
+  },
+  "usageApproval": {
+    "approved": true,
+    "note": "Marchio neutro di default: logo derivato da Material Symbols (Apache 2.0), carattere Roboto (SIL OFL 1.1)."
+  }
+}

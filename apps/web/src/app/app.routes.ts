@@ -1,5 +1,6 @@
 import type { Routes } from '@angular/router';
 import { adminGuard, authGuard, globalAdminGuard, guestGuard, readyGuard } from './core/guards';
+import { devRoutes } from './dev-routes';
 
 export const routes: Routes = [
   { path: 'login', canActivate: [guestGuard], title: 'Accedi', loadComponent: () => import('./pages/login.page').then((m) => m.LoginPage) },
@@ -50,5 +51,6 @@ export const routes: Routes = [
       },
     ],
   },
+  ...devRoutes,
   { path: '**', redirectTo: '' },
 ];

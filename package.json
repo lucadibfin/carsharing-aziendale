@@ -15,7 +15,7 @@
   },
   "packageManager": "npm@11.16.0",
   "scripts": {
-    "build:shared": "npm run build -w @fcs/shared",
+    "build:shared": "npm run build -w @fcs/shared && npm run build -w @fcs/brand",
     "build": "npm run build:shared && npm run build -w api && npm run build -w web",
     "db:start": "npm run db:start -w api",
     "db:migrate": "npm run db:deploy -w api && npm run prisma:generate -w api",
@@ -24,7 +24,7 @@
     "dev:api": "npm run build:shared && npm run start:dev -w api",
     "dev:web": "npm start -w web",
     "serve:https": "node scripts/serve-https.mjs",
-    "test": "npm run build:shared && npm test -w @fcs/shared && npm test -w api && npm test -w web -- --watch=false",
+    "test": "npm run build:shared && npm test -w @fcs/shared && npm test -w @fcs/brand && npm test -w api && npm test -w web -- --watch=false",
     "e2e": "npm run build:shared && npm run build -w api && npm test -w e2e",
     "lint": "npm run lint -w api"
   },

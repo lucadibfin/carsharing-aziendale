@@ -1,0 +1,52 @@
+{
+  "id": "fincons",
+  "appName": "Car Sharing Fincons",
+  "shortName": "CarSharing",
+  "description": "Condividi l'auto nel tragitto casa-lavoro con i colleghi Fincons della tua sede",
+  "tagline": "Condividi il tragitto casa-lavoro con i colleghi della tua sede.",
+  "logo": "logo.svg",
+  "logoMark": "logo-mark.svg",
+  "colors": {
+    "light": {
+      "primary": "#b10135",
+      "secondary": "#5d5d5f",
+      "accent": "#2865c6",
+      "neutral": "#5d5d5f",
+      "neutralChroma": 2
+    }
+  },
+  "icons": {
+    "background": "#ffffff",
+    "padding": 0.04
+  },
+  "font": {
+    "family": "Lato",
+    "fallback": "'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif",
+    "weights": { "regular": 400, "medium": 700, "bold": 900 },
+    "files": [
+      { "weight": 400, "file": "fonts/lato-latin-400-normal.woff2" },
+      { "weight": 700, "file": "fonts/lato-latin-700-normal.woff2" },
+      { "weight": 900, "file": "fonts/lato-latin-900-normal.woff2" }
+    ],
+    "license": "fonts/OFL.txt"
+  },
+  "shape": { "button": "pill", "card": 6, "field": 4, "chip": "pill", "dialog": 8 },
+  "card": "shadow",
+  "elevation": "pronounced",
+  "text": {
+    "headingTransform": "uppercase",
+    "headingTracking": "0.03em",
+    "buttonTransform": "none"
+  },
+  "email": {
+    "senderName": "Car Sharing Fincons",
+    "signature": "Questo messaggio è stato inviato automaticamente dall'app Car Sharing Fincons. Puoi scegliere quali notifiche ricevere dal tuo profilo."
+  },
+  "legal": {
+    "website": "https://ita.finconsgroup.com/"
+  },
+  "usageApproval": {
+    "approved": false,
+    "note": "Logo e marchio Fincons: uso nell'app DA APPROVARE da parte dell'azienda (Comunicazione/Marketing). Fino all'approvazione usare questo marchio solo in sviluppo e nei test interni."
+  }
+}

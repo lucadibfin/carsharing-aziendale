@@ -1,0 +1,141 @@
+<div class="sg">
+  <header class="sg-intro">
+    <h1>Guida di stile</h1>
+    <p>
+      Pagina di sviluppo (non inclusa nella build di produzione). Marchio attivo: <strong>{{ active.id }}</strong>
+      (scelto con <code>BRAND</code> alla build). Le colonne mostrano gli stessi componenti con i token di ogni marchio.
+    </p>
+  </header>
+
+  <div class="sg-columns">
+    @for (b of brands; track b.id) {
+      <section class="sg-brand" [attr.data-brand]="b.id" [attr.aria-label]="'Marchio ' + b.id">
+        <div class="sg-head">
+          <img [src]="b.logo" alt="" class="sg-logo" />
+          <div>
+            <div class="sg-brand-name">{{ b.appName }}</div>
+            <code>BRAND={{ b.id }}</code>
+            @if (!b.approved) { <span class="chip warn">Uso del marchio da approvare</span> }
+          </div>
+        </div>
+
+        <h2 class="section-title">Colori</h2>
+        <div class="sg-swatches">
+          @for (s of swatches; track s[0]) {
+            <div class="sg-swatch" [style.background]="'var(--mat-sys-' + s[0] + ')'" [style.color]="'var(--mat-sys-' + s[1] + ')'">
+              {{ s[0] }}
+            </div>
+          }
+        </div>
+
+        <h2 class="section-title">Tipografia</h2>
+        <div class="page-title">Titolo di pagina</div>
+        <div class="section-title">Titolo di sezione</div>
+        <p class="sg-body">Testo normale: condividi il tragitto casa-lavoro con i colleghi della tua sede.</p>
+        <p class="muted">Testo secondario: i messaggi vengono cancellati dopo 30 giorni.</p>
+        <p><a href="#" (click)="$event.preventDefault()">Collegamento</a></p>
+
+        <h2 class="section-title">Pulsanti</h2>
+        <div class="row">
+          <button matButton="filled">Prenota</button>
+          <button matButton="tonal">Tonale</button>
+          <button matButton="outlined">Annulla</button>
+          <button matButton>Testo</button>
+        </div>
+        <div class="row sg-gap">
+          <button matButton="filled" disabled>Disabilitato</button>
+          <button matIconButton aria-label="Invia"><mat-icon svgIcon="send" /></button>
+          <button matButton="elevated"><mat-icon svgIcon="add" />Proponi</button>
+        </div>
+
+        <h2 class="section-title">Campi</h2>
+        <div class="stack">
+          <mat-form-field>
+            <mat-label>Comune di partenza</mat-label>
+            <input matInput value="Monza" />
+            <mat-hint>Il comune da cui parti</mat-hint>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Sede</mat-label>
+            <mat-select value="mi">
+              <mat-option value="mi">Milano</mat-option>
+              <mat-option value="rm">Roma</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Campo obbligatorio</mat-label>
+            <input matInput [formControl]="required" />
+            <mat-error>Campo obbligatorio</mat-error>
+          </mat-form-field>
+          <mat-slide-toggle checked>Notifiche push</mat-slide-toggle>
+          <mat-checkbox checked>Accetto i termini</mat-checkbox>
+          <mat-button-toggle-group value="and" aria-label="Direzione">
+            <mat-button-toggle value="and">Andata</mat-button-toggle>
+            <mat-button-toggle value="rit">Ritorno</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+
+        <h2 class="section-title">Card dei viaggi</h2>
+        <app-trip-card [trip]="trip" />
+        <div class="row sg-gap">
+          <span class="chip">Conducente</span>
+          <span class="chip private">Privato</span>
+          <span class="chip warn">Annullato</span>
+        </div>
+
+        <h2 class="section-title">Chat</h2>
+        <div class="sg-chat">
+          <div class="sg-day">Lunedì 18 novembre</div>
+          <app-chat-message who="Giulia Rossi" text="Sono in partenza, arrivo tra 10 minuti." time="08:02" />
+          <app-chat-message [mine]="true" text="Perfetto, ti aspetto davanti alla stazione." time="08:03" />
+          <app-chat-message who="Marco Bianchi" text="Sono in ritardo di 5 minuti" time="08:05" [quick]="true" />
+        </div>
+        <mat-chip-set aria-label="Messaggi rapidi">
+          <mat-chip>Sono in ritardo</mat-chip>
+          <mat-chip>Sono arrivato</mat-chip>
+        </mat-chip-set>
+
+        <h2 class="section-title">Notifiche</h2>
+        <app-notice-banner>Il tuo comune Lirio è ora <strong>Montalto Pavese</strong>.</app-notice-banner>
+        <div class="sg-snackbar" role="presentation">
+          <span>Viaggio prenotato</span><button type="button">OK</button>
+        </div>
+        <button matButton="outlined" class="sg-gap" (click)="toast()">Mostra notifica reale</button>
+
+        <h2 class="section-title">Contrasto (WCAG 2.1 AA)</h2>
+        <table class="sg-contrast">
+          <thead><tr><th>Coppia</th><th>Uso</th><th>Rapporto</th></tr></thead>
+          <tbody>
+            @for (c of b.contrast; track c.fg + c.bg) {
+              <tr>
+                <td><span class="sg-pair" [style.background]="c.bgColor" [style.color]="c.fgColor">Aa</span> {{ c.fg }} / {{ c.bg }}</td>
+                <td>{{ c.usage }}</td>
+                <td [class.sg-fail]="!c.pass">{{ c.ratio }}:1 {{ c.pass ? '✓' : '✗' }} <span class="muted">(min {{ c.min }})</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        @if (b.adjustments.length) {
+          <p class="muted">Colori corretti per il contrasto:</p>
+          <ul>
+            @for (a of b.adjustments; track $index) { <li><code>{{ a.role }}</code> {{ a.from }} → {{ a.to }} ({{ a.reason }})</li> }
+          </ul>
+        } @else {
+          <p class="muted">Nessun colore corretto: i colori del marchio rispettano già le soglie.</p>
+        }
+      </section>
+    }
+  </div>
+
+  <section class="sg-icons" aria-label="Icone PWA">
+    <h2 class="section-title">Icone PWA del marchio attivo ({{ active.id }})</h2>
+    <div class="row">
+      @for (i of icons; track i.file) {
+        <figure [class.dark]="i.dark">
+          <img [src]="'icons/' + i.file" [alt]="i.label" [class.round]="i.round" [class.rounded]="i.rounded" width="96" height="96" />
+          <figcaption>{{ i.label }}</figcaption>
+        </figure>
+      }
+    </div>
+  </section>
+</div>

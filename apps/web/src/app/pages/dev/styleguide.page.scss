@@ -1,0 +1,162 @@
+// I token di tutti i marchi (confinati in [data-brand='<id>']) sono nel foglio
+// styleguide.css, generato solo nella configurazione di sviluppo (angular.json) e
+// caricato dalla pagina: così non pesano sul budget dei componenti né sulla produzione.
+
+.sg {
+  padding: var(--app-space-4) var(--app-space-4) 96px;
+  max-width: 1280px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.sg-intro h1 {
+  font: var(--mat-sys-headline-medium);
+  margin: 0 0 var(--app-space-2);
+}
+
+.sg-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: var(--app-space-5);
+}
+
+.sg-brand {
+  padding: var(--app-space-4);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--app-radius-card);
+  min-width: 0;
+}
+
+.sg-head {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+}
+
+.sg-logo {
+  height: 56px;
+  max-width: 200px;
+}
+
+.sg-brand-name {
+  font: var(--mat-sys-title-large);
+}
+
+.sg-head .chip {
+  margin-left: var(--app-space-2);
+}
+
+.sg-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--app-space-2);
+}
+
+.sg-swatch {
+  padding: var(--app-space-3) var(--app-space-2);
+  border-radius: var(--app-radius-sm);
+  border: 1px solid var(--mat-sys-outline-variant);
+  font: var(--mat-sys-label-medium);
+}
+
+.sg-body {
+  font: var(--mat-sys-body-large);
+}
+
+.sg-gap {
+  margin-top: var(--app-space-3);
+}
+
+.sg-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--app-space-3);
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--app-radius-card);
+  margin-bottom: var(--app-space-2);
+}
+
+.sg-day {
+  align-self: center;
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// Riproduzione statica dello snackbar (quello reale si apre fuori dalla colonna).
+.sg-snackbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--app-space-3);
+  padding: 6px 8px 6px 16px;
+  border-radius: var(--app-radius-sm);
+  background: var(--mat-sys-inverse-surface);
+  color: var(--mat-sys-inverse-on-surface);
+  font: var(--mat-sys-body-medium);
+  box-shadow: var(--app-shadow-2);
+
+  button {
+    border: 0;
+    background: transparent;
+    color: var(--mat-sys-inverse-primary);
+    font: var(--mat-sys-label-large);
+    padding: var(--app-space-2) var(--app-space-3);
+    cursor: pointer;
+  }
+}
+
+.sg-contrast {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--mat-sys-body-small);
+
+  th,
+  td {
+    text-align: left;
+    padding: 4px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    vertical-align: middle;
+  }
+}
+
+.sg-pair {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: var(--app-radius-sm);
+  border: 1px solid var(--mat-sys-outline-variant);
+  font-weight: var(--app-font-weight-bold);
+}
+
+.sg-fail {
+  color: var(--mat-sys-error);
+  font-weight: var(--app-font-weight-bold);
+}
+
+.sg-icons {
+  margin-top: var(--app-space-6);
+
+  figure {
+    margin: 0;
+    padding: var(--app-space-2);
+    text-align: center;
+    font: var(--mat-sys-label-small);
+    border: 1px dashed var(--mat-sys-outline-variant);
+    border-radius: var(--app-radius-sm);
+  }
+
+  // Le icone bianche su trasparente si vedono solo su sfondo scuro.
+  figure.dark {
+    background: var(--mat-sys-inverse-surface);
+    color: var(--mat-sys-inverse-on-surface);
+  }
+
+  img.round {
+    border-radius: 50%;
+  }
+
+  img.rounded {
+    border-radius: 22%;
+  }
+}

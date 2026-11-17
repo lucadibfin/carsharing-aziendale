@@ -1,20 +1,14 @@
-// Font e icone sono ospitati localmente (nessun CDN o Google Fonts: GDPR):
-// vedi "styles" e "assets" in angular.json (@fontsource/roboto, @material-symbols/svg-400).
-@use '@angular/material' as mat;
+// Tutti gli aspetti visivi (colori, caratteri, spazi, raggi, ombre) arrivano dal marchio
+// scelto con BRAND al momento della build: generated/_brand.scss è prodotto da
+// scripts/brand-build.mjs a partire da brands/<id>/brand.json. Qui e nei componenti si usano
+// solo i token: var(--mat-sys-*) e var(--app-*), mai colori o font scritti direttamente.
+// Font e icone sono ospitati localmente (nessun CDN o Google Fonts: GDPR).
+@use 'generated/brand';
+
+@include brand.font-faces;
 
 html {
-  color-scheme: light;
-  @include mat.theme(
-    (
-      color: (
-        primary: mat.$green-palette,
-        tertiary: mat.$azure-palette,
-        theme-type: light,
-      ),
-      typography: Roboto,
-      density: 0,
-    )
-  );
+  @include brand.tokens(light);
 }
 
 html,
@@ -24,10 +18,14 @@ body {
 
 body {
   margin: 0;
-  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  font-family: var(--app-font-body);
   background: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: var(--app-color-link);
 }
 
 // Icone SVG: ereditano il colore del testo.
@@ -51,6 +49,8 @@ body {
 .section-title {
   font: var(--mat-sys-title-medium);
   margin: 24px 0 8px;
+  text-transform: var(--app-heading-transform);
+  letter-spacing: var(--app-heading-tracking);
 }
 
 .muted {

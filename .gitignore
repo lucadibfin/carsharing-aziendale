@@ -16,6 +16,9 @@ deploy/**/osrm/data/
 .DS_Store
 Thumbs.db
 
+# Tema e asset del marchio generati da apps/web/scripts/brand-build.mjs
+apps/web/src/generated/
+
 # Client Prisma generato
 apps/api/src/generated/
 .mail-outbox/

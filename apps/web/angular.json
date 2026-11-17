@@ -22,20 +22,20 @@
           "builder": "@angular/build:application",
           "options": {
             "browser": "src/main.ts",
+            "index": "src/generated/index.html",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "src/generated/public"
               }
             ],
-            "styles": [
-              "@fontsource/roboto/latin-400.css",
-              "@fontsource/roboto/latin-500.css",
-              "@fontsource/roboto/latin-700.css",
-              "src/styles.scss"
-            ]
+            "styles": ["src/styles.scss"]
           },
           "configurations": {
             "production": {
@@ -57,9 +57,19 @@
                 "fonts": { "inline": false }
               },
               "outputHashing": "all",
-              "serviceWorker": "ngsw-config.json"
+              "serviceWorker": "ngsw-config.json",
+              "fileReplacements": [
+                {
+                  "replace": "src/app/dev-routes.ts",
+                  "with": "src/app/dev-routes.prod.ts"
+                }
+              ]
             },
             "development": {
+              "styles": [
+                "src/styles.scss",
+                { "input": "src/generated/_styleguide.scss", "bundleName": "styleguide", "inject": false }
+              ],
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true

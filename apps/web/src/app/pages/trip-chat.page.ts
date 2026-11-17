@@ -13,10 +13,11 @@ import { ApiService, errorCode } from '../core/api.service';
 import { ChatSocketService } from '../core/chat-socket.service';
 import { SessionStore } from '../core/session.store';
 import { ToastService } from '../core/toast.service';
+import { ChatMessageComponent } from '../shared/chat-message.component';
 
 @Component({
   selector: 'app-trip-chat-page',
-  imports: [DatePipe, FormsModule, RouterLink, MatButtonModule, MatChipsModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSlideToggleModule],
+  imports: [ChatMessageComponent, DatePipe, FormsModule, RouterLink, MatButtonModule, MatChipsModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSlideToggleModule],
   template: `
     <div class="chat">
       <header class="bar">
@@ -34,11 +35,13 @@ import { ToastService } from '../core/toast.service';
           @for (g of grouped(); track g.date) {
             <div class="day">{{ g.date | date: 'EEEE d MMMM' }}</div>
             @for (m of g.messages; track m.id) {
-              <div class="msg" [class.mine]="m.sender?.id === myId()" [class.quick]="m.kind === 'QUICK'">
-                @if (m.sender?.id !== myId()) { <div class="who">{{ m.sender ? m.sender.firstName + ' ' + m.sender.lastName : 'Utente non più attivo' }}</div> }
-                <div class="text">{{ m.text }}</div>
-                <div class="time">{{ m.createdAt | date: 'HH:mm' }}</div>
-              </div>
+              <app-chat-message
+                [mine]="m.sender?.id === myId()"
+                [quick]="m.kind === 'QUICK'"
+                [who]="m.sender ? m.sender.firstName + ' ' + m.sender.lastName : 'Utente non più attivo'"
+                [text]="m.text ?? ''"
+                [time]="(m.createdAt | date: 'HH:mm') ?? ''"
+              />
             }
           } @empty {
             <p class="empty">Nessun messaggio. Usa i messaggi rapidi per avvisare gli altri partecipanti.</p>
@@ -67,12 +70,6 @@ import { ToastService } from '../core/toast.service';
     .grow { flex: 1; }
     .messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
     .day { align-self: center; font: var(--mat-sys-label-medium); color: var(--mat-sys-on-surface-variant); margin: 8px 0; text-transform: capitalize; }
-    .msg { max-width: 80%; padding: 6px 10px; border-radius: 12px; background: var(--mat-sys-surface-container-high); align-self: flex-start; }
-    .msg.mine { align-self: flex-end; background: var(--mat-sys-primary-container); color: var(--mat-sys-on-primary-container); }
-    .msg.quick .text { font-style: italic; }
-    .who { font: var(--mat-sys-label-small); color: var(--mat-sys-primary); }
-    .text { white-space: pre-wrap; word-break: break-word; }
-    .time { font: var(--mat-sys-label-small); opacity: 0.7; text-align: right; }
     .quick { padding: 4px 8px; overflow-x: auto; }
     .composer { display: flex; align-items: center; gap: 4px; padding: 4px 8px; }
     .hint { font-size: 0.75em; padding: 0 12px 8px; margin: 0; }

@@ -1,20 +1,23 @@
 <!doctype html>
+<!-- Modello: scripts/brand-build.mjs genera src/generated/index.html con i dati del marchio. -->
 <html lang="it">
   <head>
     <meta charset="utf-8" />
-    <title>Car Sharing tra colleghi</title>
+    <title>{{appName}}</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="description" content="Condividi l'auto nel tragitto casa-lavoro con i colleghi" />
-    <meta name="theme-color" content="#1b5e20" />
+    <meta name="description" content="{{description}}" />
+    <meta name="theme-color" content="{{themeColor}}" />
     <meta name="referrer" content="no-referrer" />
     <!-- iOS: installazione sulla schermata Home (necessaria per le notifiche push su iPhone) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="CarSharing" />
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <meta name="apple-mobile-web-app-title" content="{{shortName}}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="icons/apple-touch-icon-167.png" />
+    <link rel="icon" href="favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="manifest" href="manifest.webmanifest" />
   </head>
   <body>
