@@ -84,28 +84,48 @@ Il risultato è `apps/api/prisma/data/comuni-coordinate.csv`:
    - Per quei comuni si cancellano le distanze già calcolate.
 4. Committare `comuni-coordinate.csv`. Gli altri ambienti lo ricevono con il deploy e il seed.
 
-### Aggiornamento quando cambia l'elenco dei comuni
-ISTAT pubblica variazioni più volte l'anno: fusioni, nuovi comuni, cambi di nome, **cambi di codice per cambio di provincia** (es. la riorganizzazione delle province sarde). I confini sono aggiornati al 1° gennaio. Una volta l'anno, o quando una variazione riguarda comuni delle sedi:
+### Elenco e confini: date diverse
+L'elenco dei comuni e i confini **possono avere date diverse**, e di norma è così:
+- l'**elenco** si prende **aggiornato a oggi** da SITUAS (situas.istat.it), così l'app propone i comuni che esistono davvero;
+- i **confini** sono pubblicati solo **al 1° gennaio** di ogni anno.
 
-1. Scaricare l'**"Elenco comuni italiani"** (CSV) e i **confini** riferiti **alla stessa data**, di norma il 1° gennaio.
-   - L'elenco pubblicato sul sito ISTAT è sempre quello aggiornato all'ultima variazione. Per allinearlo ai confini serve la versione al 1° gennaio, che si trova nell'archivio dei "Codici statistici delle unità amministrative territoriali".
-   - Con date diverse, lo script delle coordinate segnala i comuni non allineati.
-2. Aggiornare l'elenco, indicando la data di riferimento:
-   ```powershell
-   npm run comuni:istat -w api -- percorso\Elenco-comuni-italiani.csv --al 01/01/2026
+I comuni cambiati nel frattempo sono gestiti così:
+
+| Caso | Esempio | Come viene gestito |
+|---|---|---|
+| **Ricodifica** (stesso comune, codice nuovo) | Comuni sardi dopo la riorganizzazione delle province | Riconosciuta da `comuni:istat` (stesso codice catastale o stessa denominazione nella stessa regione) e registrata in `comuni-ricodifiche.csv`. Il seed sposta profili, sedi, tappe e comuni di salita sul nuovo codice ed elimina il vecchio |
+| **Fusione** dopo la data dei confini | Castegnero + Nanto → Castegnero Nanto (2026) | Registrata in `comuni-variazioni.csv` (tipo `FUSIONE`) con i codici d'origine. `comuni:istat` la riconosce da solo quando il nome nuovo è composto dai nomi dei comuni spariti della stessa provincia; altrimenti la segnala con i possibili comuni d'origine. `coords:istat` calcola il **punto interno all'unione dei territori d'origine** presenti nei confini |
+| **Distacco** di territorio (comune nuovo ricavato da uno esistente) | — | `coords:istat` lo segnala come "senza coordinate" con una proposta. Si aggiunge a mano una riga `APPROSSIMATO` con il comune d'origine: le coordinate sono quelle del comune d'origine, una stima da sostituire quando i confini dell'anno dopo includeranno il comune nuovo |
+| **Incorporazione** in un comune esistente | Lirio (PV), sparito nel 2026 | Il comune che incorpora mantiene il suo codice e il suo punto, che resta dentro il territorio allargato. Il comune incorporato resta nel database come **non selezionabile**, con le sue coordinate, per i viaggi e i profili esistenti |
+| **Cambio di nome** | Vallecrosia → Vallecrosia al mare | Il seed aggiorna il nome |
+
+I comuni d'origine di fusioni e incorporazioni restano nel database come non selezionabili, con le loro coordinate. Profili e viaggi che li usano restano validi; l'utente può scegliere il nuovo comune dal profilo.
+
+Formato di `comuni-variazioni.csv` (le righe si possono correggere a mano: gli script non le riscrivono):
+```
+codice;nome;tipo;origini;rilevato_al;nota
+024129;Castegnero Nanto;FUSIONE;024027+024071;17/11/2026;fusione di Castegnero e Nanto
+```
+
+### Aggiornamento dell'elenco (procedura)
+Una volta l'anno quando escono i nuovi confini, oppure quando una variazione riguarda i comuni delle sedi:
+
+1. **Elenco**: da SITUAS, estrazione in CSV dell'elenco dei comuni **vigenti alla data di oggi** (file tipo `situas.csv`).
+   - Il file non contiene la data: è quella dell'estrazione, da indicare con `--al`.
+   - È accettato anche l'"Elenco comuni italiani" del sito ISTAT. Lo script riconosce le colonne di entrambi i formati.
+2. **Confini**: gli ultimi pubblicati, al 1° gennaio, versione generalizzata WGS84 UTM 32N.
+3. Prova a secco, che mostra cosa cambierebbe senza scrivere nulla:
+   ```bash
+   npm run comuni:istat -w api -- percorso/situas.csv --al GG/MM/AAAA --dry-run
    ```
-   - Riscrive `apps/api/prisma/data/comuni.csv`, con data e fonte nella prima riga e la colonna del codice catastale.
-   - Distingue:
-     - **ricodifiche**: stesso comune con codice nuovo. Si riconoscono dallo stesso codice catastale o, se manca, dalla stessa denominazione nella stessa regione, con corrispondenza univoca;
-     - comuni **nuovi**, **soppressi o fusi**, **rinominati**;
-     - casi **ambigui**, segnalati e da verificare a mano.
-   - Le ricodifiche vengono aggiunte a `apps/api/prisma/data/comuni-ricodifiche.csv`, un registro storico che non va mai riscritto da zero.
-3. Rigenerare le coordinate (passo 2 della prima generazione) e controllare che **nessun comune dell'elenco resti senza confini**. Ogni eccezione va spiegata, ad esempio con un comune nato dopo la data dei confini.
-4. `npm run db:seed -w api`:
-   - **ricodifiche**: profili, sedi, tappe dei viaggi e comuni di salita passano al nuovo codice e il vecchio codice viene eliminato. Nessun dato resta orfano: se il nuovo codice manca dall'elenco, il seed si ferma;
-   - i comuni nuovi diventano selezionabili e i nomi vengono aggiornati;
-   - i comuni **soppressi o fusi** restano nel database come **non selezionabili**, perché li usano viaggi e profili esistenti. L'utente vede ancora il vecchio comune nel profilo e può scegliere quello nuovo.
-5. Committare insieme `comuni.csv`, `comuni-ricodifiche.csv` e `comuni-coordinate.csv`.
+4. Aggiornamento dell'elenco (stesso comando senza `--dry-run`). Riscrive `comuni.csv` e aggiunge ricodifiche e fusioni riconosciute ai due registri.
+5. Coordinate: `npm run coords:istat -w api -- percorso/ComGGMMAAAA_g_WGS84.shp`.
+   - Deve chiudersi con **"Comuni dell'elenco senza coordinate: 0"**.
+   - Se resta qualche comune, lo script lo elenca con una proposta. Si completa `comuni-variazioni.csv` e si ripete.
+6. `npm run db:seed`, che applica ricodifiche, nuovi comuni, nomi e coordinate.
+7. Committare insieme `comuni.csv`, `comuni-ricodifiche.csv`, `comuni-variazioni.csv` e `comuni-coordinate.csv`.
+
+Quando escono i confini dell'anno successivo, i comuni nati da fusione o distacco vi compaiono con il proprio poligono. `coords:istat` usa allora direttamente quello e le righe di `comuni-variazioni.csv` non servono più per quei comuni. Possono restare come storico.
 
 **Altri file.** Per coordinate da altre fonti resta `npm run db:import-coords -w api -- file.csv` (formato `istat;lat;lon`), che però non aggiorna il CSV versionato.
 

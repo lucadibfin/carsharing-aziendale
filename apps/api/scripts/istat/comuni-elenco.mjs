@@ -14,20 +14,36 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { mergeVariations, VARIATIONS_PATH } from './variazioni.mjs';
 
 const dataDir = resolve(import.meta.dirname, '../../prisma/data');
 const listPath = resolve(dataDir, 'comuni.csv');
 const recodingsPath = resolve(dataDir, 'comuni-ricodifiche.csv');
 
-/** Colonne cercate per nome (l'ordine e le note tra parentesi cambiano tra i rilasci). */
+/**
+ * Colonne cercate per nome. Formati supportati:
+ * - "Elenco comuni italiani" (sito ISTAT): "Codice Comune formato alfanumerico",
+ *   "Denominazione in italiano", "Denominazione Regione", "Codice Catastale del comune";
+ * - estrazione SITUAS (situas.istat.it), UTF-8 con BOM: "Codice Comune (alfanumerico)",
+ *   "Comune (dizione italiana)", "Regione", "Codice catasto".
+ * In entrambi: "Sigla automobilistica". L'ordine delle colonne non conta.
+ */
 const COLUMNS = {
-  istat: (h) => h.includes('codice comune formato alfanumerico'),
-  name: (h) => h.includes('denominazione in italiano'),
+  istat: (h) => h.includes('codice comune formato alfanumerico') || h === 'codice comune (alfanumerico)',
+  name: (h) => h.includes('denominazione in italiano') || h === 'comune (dizione italiana)',
   province: (h) => h.includes('sigla automobilistica'),
-  region: (h) => h.startsWith('denominazione regione'),
-  catastale: (h) => h.includes('codice catastale'),
+  region: (h) => h.startsWith('denominazione regione') || h === 'regione',
+  catastale: (h) => h.includes('codice catastale') || h === 'codice catasto',
 };
 const OPTIONAL = new Set(['catastale']);
+
+/** Nome della fonte da riportare nel CSV, riconosciuto dalle colonne. */
+export function sourceName(buf) {
+  const header = decode(buf).split(/\r?\n/)[0].toLowerCase();
+  return header.includes('comune (dizione italiana)')
+    ? 'ISTAT - SITUAS, elenco dei comuni'
+    : 'ISTAT - Elenco comuni italiani';
+}
 
 function decode(buf) {
   const utf8 = new TextDecoder('utf-8').decode(buf);
@@ -150,9 +166,39 @@ export function diffLists(before, after) {
   };
 }
 
-export function listToCsv(rows, refDate) {
+const STOPWORDS = new Set(['e', 'ed', 'con', 'di', 'de', 'del', 'della', 'in', 'sul', 'sulla']);
+const words = (s) => norm(s).split(' ').filter((w) => w && !STOPWORDS.has(w));
+
+/**
+ * Comuni nuovi nati da FUSIONE, riconosciuti quando il nome nuovo è composto
+ * esattamente dai nomi di due o più comuni spariti della stessa provincia
+ * (es. "Castegnero Nanto" = Castegnero + Nanto). Gli altri comuni nuovi
+ * restano da classificare: per ciascuno si propongono come possibili origini i
+ * comuni spariti della stessa provincia.
+ */
+export function detectFusions(added, removed) {
+  const fusions = [];
+  const unresolved = [];
+  for (const a of added) {
+    const target = new Set(words(a.name));
+    const sameProvince = removed.filter((r) => r.region === a.region && (r.province === a.province || !r.province));
+    const parts = sameProvince.filter((r) => {
+      const w = words(r.name);
+      return w.length > 0 && w.every((x) => target.has(x));
+    });
+    const covered = new Set(parts.flatMap((p) => words(p.name)));
+    if (parts.length >= 2 && [...target].every((w) => covered.has(w))) {
+      fusions.push({ comune: a, origins: parts });
+    } else {
+      unresolved.push({ comune: a, candidates: sameProvince });
+    }
+  }
+  return { fusions, unresolved };
+}
+
+export function listToCsv(rows, refDate, source = 'ISTAT - Elenco comuni italiani') {
   return [
-    `# Fonte: ISTAT - Elenco comuni italiani al ${refDate}. Licenza CC BY 4.0.`,
+    `# Fonte: ${source} al ${refDate}. Licenza CC BY 4.0.`,
     'istat;name;province;region;catastale',
     ...rows.map((r) => `${r.istat};${r.name};${r.province};${r.region};${r.catastale}`),
     '',
@@ -175,30 +221,67 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const args = process.argv.slice(2);
   const input = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--al');
   const refDate = args[args.indexOf('--al') + 1];
+  const dryRun = args.includes('--dry-run');
   if (!input || !args.includes('--al') || !/^\d{2}\/\d{2}\/\d{4}$/.test(refDate ?? '')) {
-    console.error('Uso: npm run comuni:istat -w api -- <Elenco-comuni-italiani.csv> --al GG/MM/AAAA');
-    console.error('La data è quella di riferimento dell\'elenco e deve coincidere con quella dei confini.');
+    console.error('Uso: npm run comuni:istat -w api -- <elenco.csv> --al GG/MM/AAAA [--dry-run]');
+    console.error('--al: data di riferimento dell\'elenco (per SITUAS, il giorno dell\'estrazione).');
     process.exit(1);
   }
-  const rows = parseElenco(readFileSync(resolve(process.env.INIT_CWD ?? process.cwd(), input)));
+  const buf = readFileSync(resolve(process.env.INIT_CWD ?? process.cwd(), input));
+  const rows = parseElenco(buf);
+  const source = sourceName(buf);
   const d = diffLists(readList(), rows);
-  writeFileSync(listPath, listToCsv(rows, refDate), 'utf8');
-  if (d.recoded.length) {
-    writeFileSync(recodingsPath, mergeRecodings(existsSync(recodingsPath) ? readFileSync(recodingsPath, 'utf8') : '', d.recoded, refDate), 'utf8');
-  }
-  console.log(`Comuni: ${rows.length} (elenco al ${refDate}) → ${listPath}`);
+  const { fusions, unresolved } = detectFusions(d.added, d.removed);
+  const fusedOrigins = new Set(fusions.flatMap((f) => f.origins.map((o) => o.istat)));
+
+  console.log(`Fonte: ${source} al ${refDate}. Comuni: ${rows.length}`);
   console.log(
-    `Ricodificati: ${d.recoded.length}, nuovi: ${d.added.length}, soppressi o fusi: ${d.removed.length}, rinominati: ${d.renamed.length}`,
+    `Ricodificati: ${d.recoded.length}, nuovi: ${d.added.length} (da fusione: ${fusions.length}), ` +
+      `soppressi o fusi: ${d.removed.length}, rinominati: ${d.renamed.length}, ambigui: ${d.ambiguous.length}`,
   );
   const byProvince = {};
   for (const r of d.recoded) {
-    const k = `${r.from.province}→${r.to.province}`;
+    const k = `${r.from.istat.slice(0, 3)}→${r.to.istat.slice(0, 3)}`;
     byProvince[k] = (byProvince[k] ?? 0) + 1;
   }
-  if (d.recoded.length) console.log(`  ricodifiche per provincia: ${JSON.stringify(byProvince)} → ${recodingsPath}`);
-  for (const r of d.added) console.log(`  + ${r.istat} ${r.name} (${r.province})`);
-  for (const r of d.removed) console.log(`  - ${r.istat} ${r.name} (${r.province}): resterà nel DB come non selezionabile`);
+  if (d.recoded.length) console.log(`  ricodifiche per prefisso di codice: ${JSON.stringify(byProvince)}`);
+  for (const f of fusions) {
+    console.log(`  + ${f.comune.istat} ${f.comune.name} (${f.comune.province}): FUSIONE di ${f.origins.map((o) => `${o.istat} ${o.name}`).join(' + ')}`);
+  }
+  for (const u of unresolved) {
+    console.warn(`  + ${u.comune.istat} ${u.comune.name} (${u.comune.province}): nuovo, origine NON riconosciuta.`);
+    console.warn(
+      `    Proposta: verificare su SITUAS (variazioni amministrative) e aggiungere a comuni-variazioni.csv una riga FUSIONE con i codici d'origine` +
+        (u.candidates.length ? ` (comuni spariti della stessa provincia: ${u.candidates.map((c) => `${c.istat} ${c.name}`).join(', ')})` : '') +
+        `, oppure APPROSSIMATO con il comune da cui si è staccato.`,
+    );
+  }
+  for (const r of d.removed.filter((x) => !fusedOrigins.has(x.istat))) {
+    console.warn(`  - ${r.istat} ${r.name} (${r.province}): non più nell'elenco e non confluito in un comune nuovo.`);
+    console.warn('    Probabile incorporazione in un comune esistente: resterà nel DB come non selezionabile (profili e viaggi invariati).');
+  }
   for (const r of d.renamed) console.log(`  ~ ${r.istat} ${r.name}`);
   for (const a of d.ambiguous) console.warn(`  ? corrispondenza ambigua ${a.key}: ${a.from.join(',')} → ${a.to.join(',')} (trattati come soppressi/nuovi)`);
-  console.log('Poi: rigenerare le coordinate con i confini della stessa data (npm run coords:istat -w api -- …) e npm run db:seed -w api');
+
+  if (dryRun) {
+    console.log('Prova a secco: nessun file modificato.');
+  } else {
+    writeFileSync(listPath, listToCsv(rows, refDate, source), 'utf8');
+    if (d.recoded.length) {
+      writeFileSync(recodingsPath, mergeRecodings(existsSync(recodingsPath) ? readFileSync(recodingsPath, 'utf8') : '', d.recoded, refDate), 'utf8');
+    }
+    if (fusions.length) {
+      const entries = fusions.map((f) => ({
+        code: f.comune.istat,
+        name: f.comune.name,
+        type: 'FUSIONE',
+        origins: f.origins.map((o) => o.istat).sort(),
+        detectedAt: refDate,
+        note: `fusione di ${f.origins.map((o) => o.name).join(' e ')} (riconosciuta dal nome)`,
+      }));
+      writeFileSync(VARIATIONS_PATH, mergeVariations(existsSync(VARIATIONS_PATH) ? readFileSync(VARIATIONS_PATH, 'utf8') : '', entries), 'utf8');
+    }
+    console.log(`Scritti: ${listPath}${d.recoded.length ? ', comuni-ricodifiche.csv' : ''}${fusions.length ? ', comuni-variazioni.csv' : ''}`);
+    console.log('Poi: npm run coords:istat -w api -- <confini.shp> e npm run db:seed');
+  }
 }

@@ -216,7 +216,7 @@ Lo smoke test e2e `admin.spec.ts` apre tutte le sezioni dell'area amministrativa
 - Da fare prima dei test con gli utenti:
   - icone definitive ([docs/icone.md](docs/icone.md));
   - coordinate dei comuni dai confini ISTAT: `npm run coords:istat -w api -- <confini.shp>`, poi `npm run db:seed -w api` ([docs/distanze.md](docs/distanze.md#coordinate-dei-comuni-fonte-istat)).
-- Aggiornamento annuale dell'elenco dei comuni: `npm run comuni:istat -w api -- <Elenco-comuni-italiani.csv> --al <data>` (i cambi di codice sono gestiti come ricodifiche: profili e viaggi passano al nuovo codice) e rigenerazione delle coordinate (stesso documento).
+- Aggiornamento dell'elenco dei comuni (elenco SITUAS a oggi, confini al 1° gennaio): `npm run comuni:istat -w api -- <situas.csv> --al <data estrazione>`, poi `coords:istat` e `db:seed`. Ricodifiche, fusioni e incorporazioni sono gestite come descritto in [docs/distanze.md](docs/distanze.md#elenco-e-confini-date-diverse).
 - [ ] **Fase 3**:
   - viaggi ricorrenti e membri fissi;
   - lista d'attesa;

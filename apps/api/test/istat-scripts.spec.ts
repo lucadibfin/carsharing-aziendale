@@ -3,9 +3,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { parsePrj } from '../scripts/istat/boundaries.mjs';
-import { type ComuneRow, diffLists, listToCsv, mergeRecodings, parseElenco } from '../scripts/istat/comuni-elenco.mjs';
-import { compareWithList, computePoints, toCsv, vintageFromName } from '../scripts/istat/comuni-punti.mjs';
-import { isInside, latLonToUtm, pointOnSurface, utmToLatLon } from '../scripts/istat/geo.mjs';
+import {
+  type ComuneRow,
+  detectFusions,
+  diffLists,
+  listToCsv,
+  mergeRecodings,
+  parseElenco,
+  sourceName,
+} from '../scripts/istat/comuni-elenco.mjs';
+import { compareWithList, computePoints, derivePoints, toCsv, vintageFromName } from '../scripts/istat/comuni-punti.mjs';
+import { isInside, latLonToUtm, pointOnSurface, pointOnSurfaceOfUnion, utmToLatLon } from '../scripts/istat/geo.mjs';
+import { mergeVariations, parseVariations } from '../scripts/istat/variazioni.mjs';
 
 const UTM32_PRJ =
   'PROJCS["WGS_1984_UTM_Zone_32N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],' +
@@ -271,6 +280,87 @@ describe('Coordinate dei comuni dai confini ISTAT', () => {
           'istat;name;province;region;catastale\n' +
           '112003;Alghero;SS;Sardegna;A192\n',
       );
+    });
+
+    it('legge l’estrazione SITUAS (UTF-8 con BOM, colonne con nomi diversi)', () => {
+      const header =
+        'Codice Ripartizione geografica;Codice Regione;Codice Provincia (Storico);Codice Provincia/Uts;Codice Comune (alfanumerico);' +
+        'Codice Comune (numerico);Comune;Comune (dizione italiana);Comune (dizione straniera);Ripartizione geografica;Regione;' +
+        'Provincia/Uts;Tipologia Provincia/Uts;Capoluogo di regione;Capoluogo di provincia/uts;Sigla automobilistica;Codice catasto;' +
+        'Codice fiscale;Codice NUTS1 2024;Codice NUTS2 2024;Codice NUTS3 2024';
+      const rows = [
+        '4;04;021;021;021008;21008;Bolzano/Bozen;Bolzano;Bozen;Nord-est;Trentino-Alto Adige/Südtirol;Bolzano/Bozen;2;0;1;BZ;A952;00389240219;ITH;ITH1;ITH10',
+        '2;05;024;024;024129;24129;Castegnero Nanto;Castegnero Nanto;;Nord-est;Veneto;Vicenza;1;0;0;VI;M439;00000000000;ITH;ITH3;ITH32',
+      ];
+      const buf = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from([header, ...rows].join('\n') + '\n', 'utf8')]);
+      expect(sourceName(buf)).toBe('ISTAT - SITUAS, elenco dei comuni');
+      expect(parseElenco(buf)).toEqual([
+        { istat: '021008', name: 'Bolzano', province: 'BZ', region: 'Trentino-Alto Adige/Südtirol', catastale: 'A952' },
+        { istat: '024129', name: 'Castegnero Nanto', province: 'VI', region: 'Veneto', catastale: 'M439' },
+      ]);
+    });
+
+    describe('fusioni successive alla data dei confini', () => {
+      it('riconosce la fusione dal nome composto dai comuni spariti della stessa provincia', () => {
+        const removed = [row('024027', 'Castegnero', 'VI', 'Veneto'), row('024071', 'Nanto', 'VI', 'Veneto'), row('018082', 'Lirio', 'PV', 'Lombardia')];
+        const added = [row('024129', 'Castegnero Nanto', 'VI', 'Veneto'), row('099001', 'Borgo Nuovo', 'XX', 'Veneto')];
+        const { fusions, unresolved } = detectFusions(added, removed);
+        expect(fusions.map((f) => [f.comune.istat, f.origins.map((o) => o.istat)])).toEqual([['024129', ['024027', '024071']]]);
+        // Un nome nuovo non composto dai nomi d'origine resta da classificare a mano.
+        expect(unresolved.map((u) => u.comune.istat)).toEqual(['099001']);
+      });
+
+      it('funziona anche con trattini e congiunzioni ("Castel Tal-e-Quale" = Castel Tal + Quale)', () => {
+        const { fusions } = detectFusions(
+          [row('001900', 'Castel Tal e Quale', 'TO', 'Piemonte')],
+          [row('001801', 'Castel Tal', 'TO', 'Piemonte'), row('001802', 'Quale', 'TO', 'Piemonte')],
+        );
+        expect(fusions).toHaveLength(1);
+      });
+
+      it('punto interno all’unione di due territori confinanti, anche con una sottile fessura tra i confini', () => {
+        const left = [square(0, 0, 10)];
+        const right = [square(10.5, 0, 10)]; // fessura di 0,5 tra i due poligoni generalizzati
+        const p = pointOnSurfaceOfUnion([left, right], 1)!;
+        // Il tratto più largo è l'unione dei due (20,5): il centro cade sul confine comune.
+        expect(p.x).toBeCloseTo(10.25, 6);
+        const separate = pointOnSurfaceOfUnion([left, right], 0)!;
+        expect(isInside(left, separate.x, separate.y) || isInside(right, separate.x, separate.y)).toBe(true);
+      });
+
+      it('registro delle variazioni: righe valide, nessun duplicato, correzioni manuali conservate', () => {
+        const entry = { code: '024129', name: 'Castegnero Nanto', type: 'FUSIONE', origins: ['024027', '024071'], detectedAt: '17/11/2026', note: 'n' };
+        const text = mergeVariations('', [entry]);
+        expect(parseVariations(text)).toEqual([entry]);
+        const edited = text.replace(';n\n', ';verificata su SITUAS\n');
+        expect(mergeVariations(edited, [entry])).toBe(edited);
+        expect(() => parseVariations('codice;nome;tipo;origini;rilevato_al;nota\n024129;X;BOH;024027;;\n')).toThrow(/non valida/);
+      });
+
+      it('coordinate del comune fuso calcolate dai confini dei comuni d’origine; gli altri casi segnalati', () => {
+        const base = latLonToUtm(45.43, 11.6, 32);
+        const shp = join(dir, 'Com01012026_fusione');
+        writeShapefile(shp, [
+          { code: '024027', rings: [square(base.easting - 4000, base.northing, 4000)] },
+          { code: '024071', rings: [square(base.easting + 20, base.northing - 1000, 5000)] },
+        ]);
+        const computed = computePoints(shp + '.shp');
+        const variations = [
+          { code: '024129', name: 'Castegnero Nanto', type: 'FUSIONE', origins: ['024027', '024071'], detectedAt: '', note: '' },
+          { code: '024200', name: 'Distaccato', type: 'APPROSSIMATO', origins: ['024071'], detectedAt: '', note: '' },
+          { code: '024300', name: 'Origine ignota', type: 'FUSIONE', origins: ['024999'], detectedAt: '', note: '' },
+        ];
+        const { derived, unresolved } = derivePoints(computed, variations, ['024129', '024200', '024300', '024400']);
+        expect(derived.map((d) => d.code)).toEqual(['024129', '024200']);
+        expect(Math.abs(derived[0]!.lat - 45.43)).toBeLessThan(0.06);
+        expect(unresolved).toEqual([
+          { code: '024300', reason: 'comuni d\'origine assenti dai confini: 024999' },
+          { code: '024400', reason: 'non presente nei confini e non descritto in comuni-variazioni.csv' },
+        ]);
+        const csv = toCsv(computed.points, shp + '.shp', derived);
+        expect(csv).toContain('# 024129 Castegnero Nanto: punto interno all\'unione dei territori di 024027+024071');
+        expect(csv).toMatch(/\n024129;45\.\d{6};11\.\d{6}\n/);
+      });
     });
 
     describe('ricodifiche (stesso comune, codice nuovo)', () => {

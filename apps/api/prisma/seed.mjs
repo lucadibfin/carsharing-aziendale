@@ -12,6 +12,9 @@ try {
   // variabili già presenti nell'ambiente
 }
 
+// Cartella dei dati di riferimento; SEED_DATA_DIR serve solo ai test.
+const DATA_DIR = process.env.SEED_DATA_DIR ?? resolve(import.meta.dirname, 'data');
+
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
 
@@ -19,7 +22,7 @@ try {
   await client.query('BEGIN');
 
   // --- Comuni ISTAT ---
-  const lines = readFileSync(resolve(import.meta.dirname, 'data/comuni.csv'), 'utf8')
+  const lines = readFileSync(resolve(DATA_DIR, 'comuni.csv'), 'utf8')
     .trim()
     .split(/\r?\n/)
     .filter((l) => !l.startsWith('#')) // righe di commento: fonte e data dell'elenco
@@ -42,7 +45,7 @@ try {
   }
   // Ricodifiche (stesso comune, codice nuovo): profili, sedi e viaggi passano al
   // nuovo codice e il vecchio sparisce. Vanno applicate prima della disattivazione.
-  const recoded = await applyRecodings(client, readRecodings(resolve(import.meta.dirname, 'data/comuni-ricodifiche.csv')));
+  const recoded = await applyRecodings(client, readRecodings(resolve(DATA_DIR, 'comuni-ricodifiche.csv')));
   if (recoded.length) {
     const totals = {};
     for (const r of recoded) for (const [t, n] of Object.entries(r.moved)) totals[t] = (totals[t] ?? 0) + n;
@@ -57,7 +60,7 @@ try {
   // Generato con: npm run coords:istat -w api -- <confini> (vedi docs/distanze.md).
   // Si aggiornano solo i comuni il cui punto è cambiato, e per quelli si
   // invalidano le distanze già calcolate.
-  const coordFile = resolve(import.meta.dirname, 'data/comuni-coordinate.csv');
+  const coordFile = resolve(DATA_DIR, 'comuni-coordinate.csv');
   if (existsSync(coordFile)) {
     const coords = readFileSync(coordFile, 'utf8')
       .split(/\r?\n/)

@@ -76,7 +76,23 @@ export function latLonToUtm(lat, lon, zone) {
  * @returns {{ x: number, y: number } | null}
  */
 export function pointOnSurface(rings) {
-  const valid = rings.filter((r) => r.length >= 3);
+  return pointOnSurfaceOfUnion([rings], 0);
+}
+
+/**
+ * Punto interno all'UNIONE di più territori (es. comune nato dalla fusione di due
+ * comuni presenti nei confini). Sulla linea di scansione si calcolano gli
+ * intervalli interni di ciascun territorio, si uniscono, e si fondono i tratti
+ * separati da meno di `tolerance` (i confini generalizzati di comuni confinanti
+ * possono lasciare sottili fessure o sovrapposizioni). Si prende il centro del
+ * tratto più largo.
+ *
+ * @param {number[][][][]} parts un insieme di anelli per ciascun territorio
+ * @param {number} tolerance distanza massima (unità delle coordinate) tra tratti da fondere
+ */
+export function pointOnSurfaceOfUnion(parts, tolerance) {
+  const sets = parts.map((rings) => rings.filter((r) => r.length >= 3)).filter((s) => s.length > 0);
+  const valid = sets.flat();
   if (valid.length === 0) return null;
   const bbox = (pts) => {
     let minY = Infinity;
@@ -100,22 +116,34 @@ export function pointOnSurface(rings) {
   let best = null;
   for (let y of candidates) {
     while (vertexY.has(y)) y += eps;
-    const xs = [];
-    for (const ring of valid) {
-      for (let i = 0; i < ring.length; i++) {
-        const [x1, y1] = ring[i];
-        const [x2, y2] = ring[(i + 1) % ring.length];
-        if (y1 === y2) continue;
-        // Intervallo semiaperto [min, max): ogni attraversamento contato una volta.
-        if (y >= Math.min(y1, y2) && y < Math.max(y1, y2)) {
-          xs.push(x1 + ((y - y1) * (x2 - x1)) / (y2 - y1));
+    // Intervalli interni di ciascun territorio (regola pari-dispari al suo interno).
+    const intervals = [];
+    for (const rings of sets) {
+      const xs = [];
+      for (const ring of rings) {
+        for (let i = 0; i < ring.length; i++) {
+          const [x1, y1] = ring[i];
+          const [x2, y2] = ring[(i + 1) % ring.length];
+          if (y1 === y2) continue;
+          // Intervallo semiaperto [min, max): ogni attraversamento contato una volta.
+          if (y >= Math.min(y1, y2) && y < Math.max(y1, y2)) {
+            xs.push(x1 + ((y - y1) * (x2 - x1)) / (y2 - y1));
+          }
         }
       }
+      xs.sort((a, b) => a - b);
+      for (let i = 0; i + 1 < xs.length; i += 2) if (xs[i + 1] > xs[i]) intervals.push([xs[i], xs[i + 1]]);
     }
-    xs.sort((a, b) => a - b);
-    for (let i = 0; i + 1 < xs.length; i += 2) {
-      const width = xs[i + 1] - xs[i];
-      if (width > 0 && (!best || width > best.width)) best = { width, x: (xs[i] + xs[i + 1]) / 2, y };
+    // Unione degli intervalli, fondendo quelli che si toccano o quasi.
+    intervals.sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const iv of intervals) {
+      const last = merged.at(-1);
+      if (last && iv[0] <= last[1] + tolerance) last[1] = Math.max(last[1], iv[1]);
+      else merged.push([...iv]);
+    }
+    for (const [a, b] of merged) {
+      if (!best || b - a > best.width) best = { width: b - a, x: (a + b) / 2, y };
     }
   }
   return best ? { x: best.x, y: best.y } : null;

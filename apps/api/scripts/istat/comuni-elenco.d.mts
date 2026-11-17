@@ -21,5 +21,10 @@ export function diffLists(
   ambiguous: { key: string; from: string[]; to: string[] }[];
   renamed: ComuneRow[];
 };
-export function listToCsv(rows: ComuneRow[], refDate: string): string;
+export function listToCsv(rows: ComuneRow[], refDate: string, source?: string): string;
+export function sourceName(buf: Buffer): string;
+export function detectFusions(
+  added: ComuneRow[],
+  removed: ComuneRow[],
+): { fusions: { comune: ComuneRow; origins: ComuneRow[] }[]; unresolved: { comune: ComuneRow; candidates: ComuneRow[] }[] };
 export function mergeRecodings(existingText: string, recoded: Recoding[], refDate: string): string;
