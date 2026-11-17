@@ -45,6 +45,10 @@ export class TripMapper {
       meetingPoint: trip.series.meetingPoint,
       myRole: isDriver ? 'DRIVER' : me ? 'PARTICIPANT' : opts.invited ? 'INVITED' : 'NONE',
       myStatus: me?.status ?? null,
+      recurrence: trip.series.weekdays.length
+        ? { weekdays: trip.series.weekdays, endDate: trip.series.endDate ? toIsoDate(trip.series.endDate) : null }
+        : null,
+      isSeriesMember: trip.series.members.some((m) => m.userId === userId),
     };
   }
 
@@ -96,13 +100,47 @@ export class TripMapper {
           : undefined,
       participants,
       myInvitationId: ctx.invitationId,
+      myInvitationScope: ctx.invitationScope,
       canCancelWithoutPenalty: this.clock.now() <= deadline,
       cancellationDeadline: deadline.toISOString(),
+      waitlistCount: trip.participants.filter((p) => p.status === 'WAITLISTED').length,
     };
+
+    if (trip.series.weekdays.length && (ctx.isDriver || ctx.isSeriesMember)) {
+      dto.seriesMembers = trip.series.members.map((m) => ({
+        id: m.user.id,
+        firstName: m.user.firstName,
+        lastName: m.user.lastName,
+        boardingComuneName: stopName.get(m.boardingComune) ?? m.boardingComune,
+      }));
+      const dates = await this.prisma.trip.findMany({
+        where: { seriesId: trip.seriesId, arrivalAt: { gt: this.clock.now() } },
+        select: {
+          id: true,
+          date: true,
+          status: true,
+          arrivalAt: true,
+          seats: true,
+          visibilityOverride: true,
+          participants: { where: { OR: [{ status: 'ACCEPTED' }, { userId: ctx.userId }] }, select: { userId: true, status: true } },
+        },
+        orderBy: { date: 'asc' },
+        take: 31,
+      });
+      dto.seriesDates = dates.map((d) => ({
+        tripId: d.id,
+        date: toIsoDate(d.date),
+        status: this.effectiveStatus(d),
+        visibility: d.visibilityOverride ?? trip.series.visibility,
+        seats: d.seats,
+        seatsTaken: d.participants.filter((p) => p.status === 'ACCEPTED').length,
+        myStatus: d.participants.find((p) => p.userId === ctx.userId)?.status ?? null,
+      }));
+    }
 
     if (ctx.isDriver) {
       const invitations = await this.prisma.invitation.findMany({
-        where: { OR: [{ tripId: trip.id }, { tripId: null, seriesId: trip.seriesId }] },
+        where: { OR: [{ tripId: trip.id, scope: 'TRIP' }, { scope: 'SERIES', seriesId: trip.seriesId }] },
         include: { invitee: { select: { id: true, firstName: true, lastName: true } } },
         orderBy: { createdAt: 'desc' },
       });

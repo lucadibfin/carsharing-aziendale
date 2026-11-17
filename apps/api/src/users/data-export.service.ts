@@ -71,6 +71,10 @@ export class DataExportService {
       include: { trip: { include: { series: { include: { site: { select: { name: true } }, driver: { select: { firstName: true, lastName: true } } } } } } },
       orderBy: { requestedAt: 'asc' },
     });
+    const memberships = await this.prisma.seriesMember.findMany({
+      where: { userId },
+      include: { series: { include: { site: { select: { name: true } }, driver: { select: { firstName: true, lastName: true } } } } },
+    });
     const invitationsReceived = await this.prisma.invitation.findMany({ where: { inviteeId: userId }, include: { trip: { select: { date: true } } } });
     const invitationsCreated = await this.prisma.invitation.findMany({ where: { createdById: userId }, include: { trip: { select: { date: true } } } });
     const messages = await this.prisma.chatMessage.findMany({ where: { senderId: userId }, orderBy: { createdAt: 'asc' } });
@@ -157,8 +161,24 @@ export class DataExportService {
           presente: p.attended,
         })),
       ),
+      gruppiFissi: await Promise.all(
+        memberships.map(async (m) => ({
+          sede: m.series.site.name,
+          conducente: name(m.series.driver),
+          giorni: m.series.weekdays,
+          arrivo: m.series.arrivalTime,
+          comuneDiSalita: await comuneName(m.boardingComune),
+          nelGruppoDal: iso(m.joinedAt),
+        })),
+      ),
       inviti: {
-        ricevuti: invitationsReceived.map((i) => ({ viaggioDel: i.trip ? toIsoDate(i.trip.date) : null, stato: i.status, il: iso(i.createdAt), scadenza: iso(i.expiresAt) })),
+        ricevuti: invitationsReceived.map((i) => ({
+          viaggioDel: i.trip ? toIsoDate(i.trip.date) : null,
+          perIlGruppoFisso: i.scope === 'SERIES',
+          stato: i.status,
+          il: iso(i.createdAt),
+          scadenza: iso(i.expiresAt),
+        })),
         creati: invitationsCreated.map((i) => ({
           viaggioDel: i.trip ? toIsoDate(i.trip.date) : null,
           tipo: i.tokenHash ? 'link' : 'personale',

@@ -198,6 +198,7 @@ model User {
   sessions            Session[]
   policyAcceptances   PolicyAcceptance[]
   drivenSeries        TripSeries[]       @relation("SeriesDriver")
+  seriesMemberships   SeriesMember[]
   participations      TripParticipant[]
   invitationsReceived Invitation[]       @relation("Invitee")
   invitationsCreated  Invitation[]       @relation("InvitationCreator")
@@ -339,6 +340,8 @@ model PolicyAcceptance {
 // ---------------------------------------------------------------------------
 
 /// Serie di viaggi. Un viaggio singolo è una serie con una sola occorrenza.
+/// Serie ricorrente (weekdays non vuoto): le date si generano fino a
+/// recurringHorizonDays in avanti (job notturno), mai oltre endDate.
 model TripSeries {
   id           String         @id @default(uuid()) @db.Uuid
   driverId     String         @db.Uuid
@@ -360,11 +363,29 @@ model TripSeries {
   site         Site           @relation(fields: [siteId], references: [id])
   stops        TripStop[]
   trips        Trip[]
+  members      SeriesMember[]
   invitations  Invitation[]
   chatMessages ChatMessage[]
   chatMutes    ChatMute[]
 
   @@index([driverId])
+}
+
+/// Membro fisso di una serie ricorrente: partecipa a tutte le date (confermato
+/// finché c'è posto, altrimenti in lista d'attesa). Per una singola data può
+/// segnalare "non ci sono" (stato NOT_THERE della partecipazione).
+/// La riga si cancella quando il membro esce dal gruppo o viene rimosso.
+model SeriesMember {
+  seriesId       String     @db.Uuid
+  userId         String     @db.Uuid
+  boardingComune String     @db.Char(6)
+  joinedAt       DateTime   @default(now())
+
+  series         TripSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([seriesId, userId])
+  @@index([userId])
 }
 
 /// Comuni del percorso, ordinati (order 0 = comune di partenza).
@@ -399,6 +420,9 @@ model Trip {
   closedAt           DateTime?
   /// Avviso "nuovo viaggio di un preferito" già inviato (una sola volta per viaggio).
   favoritesNotifiedAt DateTime?
+  /// Promemoria facoltativi già inviati: la sera prima e poco prima della partenza.
+  eveningReminderAt  DateTime?
+  departureReminderAt DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
@@ -411,6 +435,7 @@ model Trip {
   @@unique([seriesId, date])
   @@index([siteId, date])
   @@index([status, arrivalAt])
+  @@index([date])
 }
 
 model TripParticipant {
@@ -438,7 +463,8 @@ model TripParticipant {
 model Invitation {
   id            String           @id @default(uuid()) @db.Uuid
   seriesId      String           @db.Uuid
-  /// Null se l'invito vale per l'intera serie.
+  /// Data da cui è partito l'invito. Con scope SERIES l'invito vale per tutta la
+  /// serie (ingresso nel gruppo fisso) e tripId resta solo come riferimento.
   tripId        String?          @db.Uuid
   scope         InvitationScope
   status        InvitationStatus @default(PENDING)

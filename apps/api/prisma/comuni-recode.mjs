@@ -22,6 +22,7 @@ export const COMUNE_COLUMNS = [
   { table: 'Site', column: 'comuneIstat' },
   { table: 'TripStop', column: 'comuneIstat' },
   { table: 'TripParticipant', column: 'boardingComune' },
+  { table: 'SeriesMember', column: 'boardingComune' },
   { table: 'DistanceCache', column: 'comuneIstat' },
 ];
 

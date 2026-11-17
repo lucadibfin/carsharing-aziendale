@@ -9,6 +9,7 @@ export const AUDIT_ACTIONS = [
   // area amministrativa: accessi
   'ADMIN_TRIPS_LIST',
   'ADMIN_DASHBOARD_VIEW',
+  'ADMIN_REPORT_EXPORT',
   'ADMIN_REPORTS_LIST',
   'ADMIN_REPORT_VIEW',
   'ADMIN_USER_SEARCH',
@@ -29,6 +30,8 @@ export const AUDIT_ACTIONS = [
   'USER_PURGED',
   // job di sistema
   'EMPLOYEE_CHECK_RUN',
+  'RETENTION_RUN',
+  'AUDIT_LOG_PURGED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -115,9 +118,40 @@ export class AuditService {
     else await this.prisma.$transaction(write);
   }
 
-  /** Ricalcola l'intera catena. */
+  /**
+   * Cancellazione per scadenza (job di conservazione): elimina in blocco le righe
+   * più vecchie di `months` mesi tramite la funzione del database audit_log_purge,
+   * unica eccezione all'append-only. Registra poi l'hash dell'ultima riga eliminata
+   * (ancora), da cui riparte la verifica della catena.
+   */
+  async purgeExpired(months: number): Promise<number> {
+    const [r] = await this.prisma.$queryRaw<{ deleted: bigint; last_deleted_id: bigint | null; anchor_hash: string | null }[]>`
+      SELECT * FROM audit_log_purge(${months}::int)`;
+    const deleted = Number(r?.deleted ?? 0);
+    if (deleted > 0) {
+      await this.record({
+        actorId: null,
+        action: 'AUDIT_LOG_PURGED',
+        meta: { deleted, lastDeletedId: r!.last_deleted_id!.toString(), anchorHash: r!.anchor_hash, months },
+      });
+    }
+    return deleted;
+  }
+
+  /**
+   * Ricalcola l'intera catena. Se le righe iniziali sono state cancellate per
+   * scadenza, la prima rimasta deve agganciarsi all'ancora registrata dalla purga.
+   */
   async verify(): Promise<AuditVerifyResult> {
     let prev = GENESIS;
+    const first = await this.prisma.auditLog.findFirst({ orderBy: { id: 'asc' }, select: { prevHash: true } });
+    if (first && first.prevHash !== GENESIS) {
+      const anchor = await this.prisma.auditLog.findFirst({
+        where: { action: 'AUDIT_LOG_PURGED', meta: { path: ['anchorHash'], equals: first.prevHash } },
+        select: { id: true },
+      });
+      if (anchor) prev = first.prevHash;
+    }
     let checked = 0;
     let cursor: bigint | undefined;
     for (;;) {

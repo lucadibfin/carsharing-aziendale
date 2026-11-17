@@ -13,6 +13,7 @@ import { ToastService } from '../../core/toast.service';
 const ACTIONS: Record<string, string> = {
   ADMIN_TRIPS_LIST: 'Consultazione elenco viaggi',
   ADMIN_DASHBOARD_VIEW: 'Consultazione dashboard',
+  ADMIN_REPORT_EXPORT: 'Esportazione report PSCL',
   ADMIN_REPORTS_LIST: 'Consultazione elenco segnalazioni',
   ADMIN_REPORT_VIEW: 'Lettura di una segnalazione',
   ADMIN_USER_SEARCH: 'Ricerca utenti (ruoli)',
@@ -30,6 +31,8 @@ const ACTIONS: Record<string, string> = {
   USER_DEACTIVATED: 'Disattivazione ex dipendente',
   USER_PURGED: 'Cancellazione definitiva dati',
   EMPLOYEE_CHECK_RUN: 'Verifica notturna dipendenti',
+  RETENTION_RUN: 'Cancellazione automatica per scadenza',
+  AUDIT_LOG_PURGED: 'Audit log: righe scadute cancellate',
 };
 
 @Component({

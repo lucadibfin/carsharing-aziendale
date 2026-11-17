@@ -66,8 +66,13 @@ Sono descritte nell'informativa (par. 5 e 5-bis), con le note per il DPO. In sin
 | Verifiche email non completate | 24 ore | Job alle 03:20 |
 | Ex dipendenti | Disattivazione immediata, cancellazione dopo 30 giorni (parametro `deactivatedPurgeDays`) | Job alle 04:00 |
 | Account cancellato dall'utente | Immediata | `DELETE /api/me` |
-| Viaggi conclusi, link scaduti, sessioni scadute, log | **Fase 3** (retention automatica completa) | — |
-| Audit log | [DA DEFINIRE, proposta 24 mesi]: la cancellazione per scadenza sarà eseguita da un ruolo DB dedicato (Fase 3) | — |
+| Viaggi (con partecipazioni, inviti, gruppi fissi; le serie senza più date e terminate con percorso e chat) | 12 mesi dalla data del viaggio (parametro `tripRetentionMonths`). Restano i fatti anonimi `TripStatFact` e le statistiche personali dell'interessato | Job alle 03:45 |
+| Inviti scaduti, revocati, rifiutati o usati | 30 giorni (parametro `inviteRetentionDays`) | Job alle 03:45 |
+| Sessioni scadute; contatori anti brute-force inattivi da 48 ore | Alla scadenza | Job alle 03:45 |
+| Audit log | 24 mesi (parametro `auditRetentionMonths`, minimo 6 imposto dal database) [DA CONFERMARE]. Le righe si cancellano solo con la funzione `audit_log_purge` (SECURITY DEFINER): in produzione l'utente DB dell'app ha INSERT e SELECT sulla tabella ed EXECUTE sulla funzione. Si cancella un blocco contiguo dall'inizio e si registra l'hash dell'ultima riga eliminata, da cui riparte la verifica della catena | Job alle 03:45 |
+| Log tecnici dell'applicazione | [DA DEFINIRE, proposta 6 mesi]: escono su stdout senza dati personali in chiaro; la conservazione è a carico del sistema che li raccoglie (journald, rotazione dei file) | Infrastruttura |
+
+Ogni esecuzione del job registra nell'audit log (`RETENTION_RUN`) solo i conteggi delle righe cancellate.
 
 **Cosa avviene alla cancellazione definitiva di un account:**
 - si cancellano utente, consensi e storico, ruoli, sessioni, push, email, partecipazioni, inviti, preferiti, statistiche personali, contatori di login, messaggi chat inviati e viaggi proposti (con le relative chat);
@@ -244,8 +249,8 @@ L'app funziona oggi così. Se il DPO decide diversamente, la modifica è puntual
 | # | Punto |
 |---|---|
 | B1 | **Servizi push dei browser** (Google, Apple, Mozilla): contenuto cifrato e generico, ma l'endpoint del dispositivo è un identificativo, con possibile trasferimento extra UE (informativa par. 6, "[DA VERIFICARE]") |
-| B2 | **Conservazione**: audit log (proposta 24 mesi), log tecnici (proposta 6 mesi), viaggi conclusi (proposta 12 mesi). La retention automatica completa è prevista in Fase 3 |
-| B3 | **Soglia minima** (k-anonimato) per i report aggregati esportati verso l'esterno: export CSV/Excel in Fase 3 |
+| B2 | **Conservazione**: audit log (24 mesi), viaggi conclusi (12 mesi), inviti (30 giorni) sono i valori predefiniti, già applicati dal job notturno e modificabili dagli admin. Da confermare; per i log tecnici (proposta 6 mesi) va configurata l'infrastruttura |
+| B3 | **Soglia minima** per i report esportati (CSV/Excel, una riga per sede e mese): sotto 5 viaggi completati (parametro `exportMinTrips`) passeggeri, km, emissioni, carburante e spesa non si pubblicano; restano i conteggi dei viaggi. Niente righe di totale, che permetterebbero di ricavare i valori nascosti. Da confermare il valore |
 | B4 | **Dati del Titolare e del DPO**; nomina dei responsabili del trattamento (gestore della VM, servizio SMTP) |
 | B5 | **DPIA**: consigliata (par. 11) |
 | B6 | Termini d'uso: assicurazione, rimborso spese tra colleghi, misure di moderazione (parti "[DA COMPILARE]") |

@@ -3,7 +3,7 @@ import { NotFound } from '../common/errors.js';
 import { Clock } from '../common/clock.js';
 import { PrismaService } from '../common/prisma.service.js';
 import type { AbsenceReportOptionsDto } from '@fcs/shared';
-import type { ParticipantStatus, TripVisibility } from '../generated/prisma/client.js';
+import type { InvitationScope, ParticipantStatus, TripVisibility } from '../generated/prisma/client.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { type LoadedTrip, tripInclude } from './trip-loader.js';
 
@@ -18,9 +18,12 @@ export interface TripContext {
   visibility: TripVisibility;
   isDriver: boolean;
   participant: LoadedTrip['participants'][number] | undefined;
+  /** Membro del gruppo fisso della serie ricorrente. */
+  isSeriesMember: boolean;
   /** Invito personale valido (per la data o per la serie). */
   hasInvitation: boolean;
   invitationId: string | undefined;
+  invitationScope: InvitationScope | undefined;
 }
 
 export function effectiveVisibility(trip: { visibilityOverride: TripVisibility | null; series: { visibility: TripVisibility } }): TripVisibility {
@@ -52,9 +55,10 @@ export class TripAccessPolicy {
             inviteeId: userId,
             status: 'PENDING',
             expiresAt: { gt: this.clock.now() },
-            OR: [{ tripId }, { tripId: null, seriesId: trip.seriesId }],
+            OR: [{ tripId, scope: 'TRIP' }, { scope: 'SERIES', seriesId: trip.seriesId }],
           },
-          select: { id: true },
+          select: { id: true, scope: true },
+          orderBy: { createdAt: 'desc' },
         });
     return {
       trip,
@@ -62,8 +66,10 @@ export class TripAccessPolicy {
       visibility: effectiveVisibility(trip),
       isDriver,
       participant,
+      isSeriesMember: trip.series.members.some((m) => m.userId === userId),
       hasInvitation: Boolean(invitation),
       invitationId: invitation?.id,
+      invitationScope: invitation?.scope,
     };
   }
 
@@ -75,7 +81,7 @@ export class TripAccessPolicy {
   }
 
   canView(ctx: TripContext): boolean {
-    if (ctx.isDriver || ctx.hasInvitation) return true;
+    if (ctx.isDriver || ctx.hasInvitation || ctx.isSeriesMember) return true;
     if (ctx.participant && VIEWING_STATUSES.includes(ctx.participant.status)) return true;
     return ctx.visibility === 'PUBLIC';
   }
@@ -85,9 +91,12 @@ export class TripAccessPolicy {
     return ctx.isDriver || ctx.participant?.status === 'ACCEPTED';
   }
 
-  /** Può vedere la lista dei partecipanti (minimizzazione: non chi guarda un viaggio pubblico da esterno). */
+  /**
+   * Può vedere la lista dei partecipanti (minimizzazione: non chi guarda un viaggio
+   * pubblico da esterno). Il membro fisso la vede anche nelle date in cui non c'è.
+   */
   canSeeParticipants(ctx: TripContext): boolean {
-    return this.isConfirmedMember(ctx);
+    return this.isConfirmedMember(ctx) || ctx.isSeriesMember;
   }
 
   /**
@@ -126,7 +135,7 @@ export class TripAccessPolicy {
       for (const p of trip.participants) {
         if (p.userId === ctx.userId) continue;
         if (p.status === 'ACCEPTED' && closed && p.attended === false) out.push({ ...summary(p.user), why: 'NO_SHOW' });
-        if (p.status === 'CANCELLED' && p.lateCancel) out.push({ ...summary(p.user), why: 'LATE_CANCEL' });
+        if ((p.status === 'CANCELLED' || p.status === 'NOT_THERE') && p.lateCancel) out.push({ ...summary(p.user), why: 'LATE_CANCEL' });
       }
     }
     if (!ctx.isDriver) {
@@ -139,11 +148,17 @@ export class TripAccessPolicy {
     return { candidates: out, deadline };
   }
 
-  /** Accesso alla chat della serie: conducente o partecipante accettato di almeno una data non annullata. */
+  /**
+   * Accesso alla chat della serie: conducente, membro del gruppo fisso o partecipante
+   * accettato di almeno una data non annullata.
+   */
   async canChat(seriesId: string, userId: string): Promise<boolean> {
-    const series = await this.prisma.tripSeries.findUnique({ where: { id: seriesId }, select: { driverId: true } });
+    const series = await this.prisma.tripSeries.findUnique({
+      where: { id: seriesId },
+      select: { driverId: true, members: { where: { userId }, select: { userId: true } } },
+    });
     if (!series) return false;
-    if (series.driverId === userId) return true;
+    if (series.driverId === userId || series.members.length > 0) return true;
     const accepted = await this.prisma.tripParticipant.count({
       where: { userId, status: 'ACCEPTED', trip: { seriesId, status: { not: 'CANCELLED' } } },
     });

@@ -145,7 +145,7 @@ Quando escono i confini dell'anno successivo, i comuni nati da fusione o distacc
 - nelle prime righe del CSV;
 - in `apps/api/prisma/data/LEGGIMI.md`.
 
-Andrà riportata anche negli export CSV/Excel dei report (Fase 3).
+È riportata anche nelle note dei report esportati in CSV ed Excel.
 
 ## Sedi
 Una sede senza coordinate usa quelle del proprio comune. Per distanze più precise l'admin globale indica latitudine e longitudine della sede (area admin → Sedi). Quando le coordinate cambiano, le distanze verso quella sede vengono ricalcolate.

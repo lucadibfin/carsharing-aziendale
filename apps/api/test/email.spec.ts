@@ -219,9 +219,23 @@ describe('Email per le notifiche con verifica tramite codice', () => {
 
     it('ogni tipo di notifica ha una categoria (essenziale / facoltativa / solo push)', () => {
       expect(Object.entries(NOTIFICATION_CATEGORY).filter(([, c]) => c === 'ESSENTIAL').map(([t]) => t).sort()).toEqual(
-        ['ACCOUNT_DEACTIVATED', 'INVITATION', 'REMOVED_FROM_TRIP', 'REQUEST_ACCEPTED', 'REQUEST_REJECTED', 'TRIP_CANCELLED', 'TRIP_RESCHEDULED'],
+        [
+          'ACCOUNT_DEACTIVATED',
+          'INVITATION',
+          'REMOVED_FROM_SERIES',
+          'REMOVED_FROM_TRIP',
+          'REQUEST_ACCEPTED',
+          'REQUEST_REJECTED',
+          'SEAT_AVAILABLE',
+          'SERIES_CANCELLED',
+          'TRIP_CANCELLED',
+          'TRIP_RESCHEDULED',
+        ],
       );
       expect(NOTIFICATION_CATEGORY.CHAT_MESSAGES).toBe('PUSH_ONLY');
+      // I promemoria sono facoltativi: solo con il consenso.
+      expect(NOTIFICATION_CATEGORY.TRIP_REMINDER).toBe('OPTIONAL');
+      expect(NOTIFICATION_CATEGORY.TRIP_REMINDER_EVENING).toBe('OPTIONAL');
     });
   });
 

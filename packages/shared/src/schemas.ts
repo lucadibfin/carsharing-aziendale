@@ -3,7 +3,7 @@
 import { z } from 'zod';
 // Solo la lingua italiana (z.locales le includerebbe tutte nel bundle del frontend).
 import it from 'zod/v4/locales/it.js';
-import { FuelType, TripVisibility } from './enums.js';
+import { FuelType, InvitationScope, TripVisibility } from './enums.js';
 import { QUICK_MESSAGE_CODES } from './quick-messages.js';
 
 // Messaggi di validazione in italiano, sia nell'API sia nel frontend.
@@ -17,8 +17,8 @@ export const id = z.uuid();
 const trimmed = (max: number) => z.string().trim().max(max);
 
 // ---------- autenticazione ----------
-// Lo username è normalizzato (trim + minuscole). Si accettano solo i caratteri
-// tipici di sAMAccountName/UPN, così input anomali non arrivano mai all'API AD.
+// Lo username Ã¨ normalizzato (trim + minuscole). Si accettano solo i caratteri
+// tipici di sAMAccountName/UPN, cosÃ¬ input anomali non arrivano mai all'API AD.
 export const loginSchema = z.object({
   username: z
     .string()
@@ -72,7 +72,7 @@ export const confirmEmailCodeSchema = z.object({
   code: z
     .string()
     .trim()
-    .regex(new RegExp(`^\\d{${EMAIL_CODE_LENGTH}}$`), `Il codice è di ${EMAIL_CODE_LENGTH} cifre`),
+    .regex(new RegExp(`^\\d{${EMAIL_CODE_LENGTH}}$`), `Il codice Ã¨ di ${EMAIL_CODE_LENGTH} cifre`),
 });
 export type ConfirmEmailCodeInput = z.infer<typeof confirmEmailCodeSchema>;
 
@@ -93,10 +93,20 @@ export const updateProfileSchema = z.object({
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
 // ---------- viaggi ----------
+/** Giorni ISO della settimana: 1 = lunedÃ¬ â€¦ 7 = domenica. */
+export const WEEKDAY_LABELS: Record<number, string> = { 1: 'lun', 2: 'mar', 3: 'mer', 4: 'gio', 5: 'ven', 6: 'sab', 7: 'dom' };
+/** Durata massima di una serie ricorrente con data di fine (giorni). */
+export const MAX_SERIES_DAYS = 366;
+
 export const createTripSchema = z
   .object({
     siteId: id,
+    /** Data del viaggio; per una serie ricorrente Ã¨ la data di inizio. */
     date: isoDate,
+    /** Serie ricorrente: giorni della settimana. Vuoto = viaggio singolo. */
+    weekdays: z.array(z.number().int().min(1).max(7)).max(7).default([]),
+    /** Ultima data della serie (inclusa). Assente = senza scadenza, finchÃ© il conducente non la termina. */
+    endDate: isoDate.nullable().optional(),
     arrivalTime: hhmm,
     returnTime: hhmm.nullable().optional(),
     departureComune: istatCode,
@@ -107,12 +117,24 @@ export const createTripSchema = z
     notes: trimmed(500).optional(),
   })
   .refine((t) => !t.returnTime || t.returnTime > t.arrivalTime, {
-    message: 'L’orario di ripartenza deve essere successivo a quello di arrivo',
+    message: 'Lâ€™orario di ripartenza deve essere successivo a quello di arrivo',
     path: ['returnTime'],
   })
   .refine((t) => new Set([t.departureComune, ...t.viaComuni]).size === t.viaComuni.length + 1, {
     message: 'I comuni del percorso non possono ripetersi',
     path: ['viaComuni'],
+  })
+  .refine((t) => new Set(t.weekdays).size === t.weekdays.length, {
+    message: 'I giorni della settimana non possono ripetersi',
+    path: ['weekdays'],
+  })
+  .refine((t) => !t.endDate || t.weekdays.length > 0, {
+    message: 'La data di fine vale solo per i viaggi ricorrenti',
+    path: ['endDate'],
+  })
+  .refine((t) => !t.endDate || t.endDate >= t.date, {
+    message: 'La data di fine deve seguire quella di inizio',
+    path: ['endDate'],
   });
 export type CreateTripInput = z.infer<typeof createTripSchema>;
 
@@ -125,11 +147,15 @@ export type SearchTripsInput = z.infer<typeof searchTripsSchema>;
 
 export const updateVisibilitySchema = z.object({
   visibility: z.enum(TripVisibility),
+  /** Serie ricorrenti: TRIP cambia solo questa data, SERIES tutte le date future. */
+  scope: z.enum(InvitationScope).default('SERIES'),
 });
 export type UpdateVisibilityInput = z.infer<typeof updateVisibilitySchema>;
 
 export const joinRequestSchema = z.object({
   boardingComune: istatCode,
+  /** Se il viaggio Ã¨ al completo, entra in lista d'attesa invece di ricevere un errore. */
+  waitlist: z.boolean().optional(),
 });
 export type JoinRequestInput = z.infer<typeof joinRequestSchema>;
 
@@ -144,7 +170,7 @@ export const createAbsenceReportSchema = z.object({
   reason: z
     .string()
     .trim()
-    .min(10, 'Descrivi brevemente cosa è successo (almeno 10 caratteri)')
+    .min(10, 'Descrivi brevemente cosa Ã¨ successo (almeno 10 caratteri)')
     .max(1000),
 });
 export type CreateAbsenceReportInput = z.infer<typeof createAbsenceReportSchema>;
@@ -158,11 +184,14 @@ export type DecideAbsenceReportInput = z.infer<typeof decideAbsenceReportSchema>
 // ---------- inviti ----------
 export const inviteUserSchema = z.object({
   userId: id,
+  /** SERIES: invito a entrare nel gruppo fisso di una serie ricorrente. */
+  scope: z.enum(InvitationScope).default('TRIP'),
 });
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 
 export const createInviteLinkSchema = z.object({
   expiresInHours: z.number().int().min(1).max(24 * 30).default(72),
+  scope: z.enum(InvitationScope).default('TRIP'),
 });
 export type CreateInviteLinkInput = z.infer<typeof createInviteLinkSchema>;
 
@@ -210,6 +239,10 @@ export type AdminTripsQuery = z.infer<typeof adminTripsQuerySchema>;
 export const dashboardQuerySchema = z.object({ siteId: optionalId, ...period });
 export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;
 
+export const EXPORT_FORMATS = ['csv', 'xlsx'] as const;
+export const exportQuerySchema = z.object({ siteId: optionalId, ...period, format: z.enum(EXPORT_FORMATS) });
+export type ExportQuery = z.infer<typeof exportQuerySchema>;
+
 export const adminReportsQuerySchema = z.object({
   siteId: optionalId,
   status: z.enum(['OPEN', 'DISMISSED', 'ACKNOWLEDGED']).optional(),
@@ -223,7 +256,7 @@ export const grantRoleSchema = z
     siteId: id.nullable().optional(),
   })
   .refine((r) => (r.role === 'SITE_ADMIN') === Boolean(r.siteId), {
-    message: 'L’admin di sede richiede una sede; l’admin globale no',
+    message: 'Lâ€™admin di sede richiede una sede; lâ€™admin globale no',
     path: ['siteId'],
   });
 export type GrantRoleInput = z.infer<typeof grantRoleSchema>;
@@ -247,7 +280,7 @@ export type UpdateSiteInput = z.infer<typeof updateSiteSchema>;
 export const publishPolicySchema = z.object({
   type: z.enum(['PRIVACY_NOTICE', 'TERMS']),
   title: trimmed(200).min(3),
-  content: z.string().trim().min(50, 'Il testo è troppo breve').max(100_000),
+  content: z.string().trim().min(50, 'Il testo Ã¨ troppo breve').max(100_000),
 });
 export type PublishPolicyInput = z.infer<typeof publishPolicySchema>;
 

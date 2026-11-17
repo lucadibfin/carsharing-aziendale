@@ -77,7 +77,8 @@ export function resetSpies(ctx: TestContext): void {
 export async function resetDb(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(`TRUNCATE "ChatMessage", "ChatMute", "PushSubscription", "Invitation", "TripParticipant",
     "Trip", "TripStop", "TripSeries", "PolicyAcceptance", "ConsentEvent", "UserConsent", "RoleAssignment", "Session",
-    "LoginThrottle", "Setting", "EmailVerification", "TripStatFact", "UserStatEntry", "DistanceCache", "Favorite", "AbsenceReport", "User" CASCADE`);
+    "LoginThrottle", "Setting", "EmailVerification", "TripStatFact", "UserStatEntry", "DistanceCache", "Favorite", "AbsenceReport",
+    "SeriesMember", "User" CASCADE`);
 }
 
 /** Client HTTP con cookie di sessione e token CSRF gestiti automaticamente. */
@@ -174,6 +175,7 @@ export function tripInput(ctx: TestContext, overrides: Partial<CreateTripInput> 
   return {
     siteId: ctx.sites[0]!.id,
     date: '2026-11-20',
+    weekdays: [],
     arrivalTime: '08:30',
     returnTime: '17:30',
     departureComune: COMUNI.BERGAMO,

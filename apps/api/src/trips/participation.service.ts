@@ -2,27 +2,16 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import type { TripDetailDto } from '@fcs/shared';
 import { AppException, Conflict, Forbidden, NotFound } from '../common/errors.js';
 import { Clock } from '../common/clock.js';
-import { PrismaService, type Tx } from '../common/prisma.service.js';
+import { PrismaService } from '../common/prisma.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { StatsService } from '../stats/stats.service.js';
 import { ChatMembershipEvents } from './chat-membership.events.js';
+import { lockFreeSeat, TRIP_FULL } from './seats.js';
+import { SeriesService } from './series.service.js';
 import { TripAccessPolicy } from './trip-access.policy.js';
 import { TripsService } from './trips.service.js';
-
-export const TRIP_FULL = () => Conflict('TRIP_FULL', 'Il viaggio è al completo');
-
-/**
- * Blocca la riga del viaggio (SELECT … FOR UPDATE) e verifica che ci sia un
- * posto libero. Chiamata dentro una transazione: due accettazioni
- * concorrenti vengono serializzate, quindi niente overbooking.
- */
-export async function lockFreeSeat(tx: Tx, tripId: string): Promise<void> {
-  const rows = await tx.$queryRaw<{ seats: number }[]>`SELECT seats FROM "Trip" WHERE id = ${tripId}::uuid FOR UPDATE`;
-  if (rows.length === 0) throw NotFound('Viaggio');
-  const accepted = await tx.tripParticipant.count({ where: { tripId, status: 'ACCEPTED' } });
-  if (accepted >= rows[0]!.seats) throw TRIP_FULL();
-}
+import { WaitlistService } from './waitlist.service.js';
 
 @Injectable()
 export class ParticipationService {
@@ -35,33 +24,51 @@ export class ParticipationService {
     private readonly notifications: NotificationsService,
     private readonly chatEvents: ChatMembershipEvents,
     private readonly stats: StatsService,
+    private readonly waitlist: WaitlistService,
+    private readonly series: SeriesService,
   ) {}
 
-  /** Richiesta di partecipazione: solo viaggi PUBBLICI (i privati non accettano richieste esterne). */
-  async request(tripId: string, userId: string, boardingComune: string): Promise<TripDetailDto> {
+  /**
+   * Richiesta di partecipazione: solo viaggi PUBBLICI (i privati non accettano richieste esterne).
+   * Viaggio al completo: con waitlist = true si entra in lista d'attesa, altrimenti TRIP_FULL.
+   * Chi è in lista d'attesa e trova un posto libero rinnova la richiesta con la stessa chiamata.
+   */
+  async request(tripId: string, userId: string, boardingComune: string, waitlist = false): Promise<TripDetailDto> {
     const ctx = await this.policy.loadVisible(tripId, userId);
     if (ctx.isDriver) throw new AppException('OWN_TRIP', 'Sei il conducente di questo viaggio');
+    if (ctx.isSeriesMember) throw Conflict('ALREADY_MEMBER', 'Fai già parte del gruppo fisso di questo viaggio');
     if (ctx.visibility !== 'PUBLIC') throw NotFound('Viaggio');
     this.trips.assertOpen(ctx.trip);
     this.assertStop(ctx.trip.series.stops, boardingComune);
 
     const existing = ctx.participant;
-    if (existing && ['REQUESTED', 'ACCEPTED', 'WAITLISTED'].includes(existing.status)) {
+    const full = ctx.trip.participants.filter((p) => p.status === 'ACCEPTED').length >= ctx.trip.seats;
+    if (existing?.status === 'WAITLISTED') {
+      if (full) throw Conflict('ALREADY_REQUESTED', 'Sei già in lista d’attesa per questo viaggio');
+    } else if (existing && ['REQUESTED', 'ACCEPTED'].includes(existing.status)) {
       throw Conflict('ALREADY_REQUESTED', 'Hai già una richiesta per questo viaggio');
     }
     if (existing?.status === 'REJECTED') {
       throw Conflict('REQUEST_REJECTED', 'Il conducente non ha accettato la tua richiesta per questo viaggio');
     }
-    const accepted = ctx.trip.participants.filter((p) => p.status === 'ACCEPTED').length;
-    if (accepted >= ctx.trip.seats) throw TRIP_FULL();
+    if (full && !waitlist) throw TRIP_FULL();
 
+    const status = full ? ('WAITLISTED' as const) : ('REQUESTED' as const);
     const now = this.clock.now();
     await this.prisma.tripParticipant.upsert({
       where: { tripId_userId: { tripId, userId } },
-      create: { tripId, userId, status: 'REQUESTED', boardingComune, requestedAt: now },
-      update: { status: 'REQUESTED', boardingComune, requestedAt: now, decidedAt: null, cancelledAt: null, lateCancel: false },
+      create: { tripId, userId, status, boardingComune, requestedAt: now },
+      update: {
+        status,
+        boardingComune,
+        // Chi rinnova la richiesta dalla lista d'attesa mantiene la sua posizione.
+        ...(existing?.status === 'WAITLISTED' ? {} : { requestedAt: now }),
+        decidedAt: null,
+        cancelledAt: null,
+        lateCancel: false,
+      },
     });
-    await this.notifications.notify([ctx.trip.series.driverId], 'JOIN_REQUEST', tripId);
+    if (status === 'REQUESTED') await this.notifications.notify([ctx.trip.series.driverId], 'JOIN_REQUEST', tripId);
     return this.trips.detail(tripId, userId);
   }
 
@@ -106,6 +113,7 @@ export class ParticipationService {
     if (r.count === 0) throw Conflict('NOT_ACCEPTED', 'Il partecipante non è confermato');
     await this.notifications.notify([p.userId], 'REMOVED_FROM_TRIP', tripId);
     await this.chatEvents.membershipChanged(ctx.trip.seriesId, p.userId);
+    await this.waitlist.seatFreed(tripId);
     return this.trips.detail(tripId, driverId);
   }
 
@@ -119,6 +127,13 @@ export class ParticipationService {
     const p = ctx.participant;
     if (!p || !['REQUESTED', 'ACCEPTED', 'WAITLISTED'].includes(p.status)) throw NotFound('Partecipazione');
     this.trips.assertOpen(ctx.trip);
+    // Un membro fisso che annulla una data dice "non ci sono": resta nel gruppo e può ripensarci.
+    if (ctx.isSeriesMember) {
+      const { cancellationDeadlineHours } = await this.settings.get();
+      const late = p.status === 'ACCEPTED' && this.clock.now() > new Date(ctx.trip.arrivalAt.getTime() - cancellationDeadlineHours * 3600_000);
+      await this.series.notThere(tripId, userId);
+      return { lateCancel: late };
+    }
     const now = this.clock.now();
     const { cancellationDeadlineHours } = await this.settings.get();
     const deadline = new Date(ctx.trip.arrivalAt.getTime() - cancellationDeadlineHours * 3600_000);
@@ -130,6 +145,7 @@ export class ParticipationService {
     if (p.status === 'ACCEPTED') {
       await this.notifications.notify([ctx.trip.series.driverId], 'PARTICIPANT_LEFT', tripId);
       await this.chatEvents.membershipChanged(ctx.trip.seriesId, userId);
+      await this.waitlist.seatFreed(tripId);
     }
     return { lateCancel };
   }

@@ -9,6 +9,10 @@ export const tripInclude = {
         select: { id: true, firstName: true, lastName: true, phoneEnc: true, status: true, consent: { select: { phoneVisible: true } } },
       },
       site: { select: { id: true, name: true } },
+      members: {
+        orderBy: { joinedAt: 'asc' },
+        select: { userId: true, boardingComune: true, user: { select: { id: true, firstName: true, lastName: true } } },
+      },
     },
   },
   participants: {

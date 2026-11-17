@@ -21,6 +21,13 @@ test('area amministrativa: l’admin globale apre tutte le sezioni senza errori'
   await expect(page.getByRole('heading', { name: 'Area amministrativa' })).toBeVisible();
   await expect(page.getByText('utenti registrati')).toBeVisible();
 
+  // Report per il PSCL: il file Excel e il CSV si scaricano con il nome indicato dal server.
+  for (const [button, ext] of [['Excel', 'xlsx'], ['CSV', 'csv']] as const) {
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: button }).click();
+    expect((await download).suggestedFilename()).toMatch(new RegExp(`^report-pscl_\\d{4}-\\d{2}-\\d{2}_\\d{4}-\\d{2}-\\d{2}\\.${ext}$`));
+  }
+
   const sections: [string, string, string | RegExp][] = [
     ['Viaggi', 'viaggi', /viaggi\b/],
     ['Segnalazioni', 'segnalazioni', 'Nessuna segnalazione.'],

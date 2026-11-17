@@ -1,5 +1,7 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, StreamableFile, UseGuards } from '@nestjs/common';
 import {
+  exportQuerySchema,
+  type ExportQuery,
   adminReportsQuerySchema,
   type AdminReportsQuery,
   adminTripsQuerySchema,
@@ -29,6 +31,7 @@ import { AbsenceReportsService } from '../trips/absence-reports.service.js';
 import { AdminConfigService } from './admin-config.service.js';
 import { AdminTripsService } from './admin-trips.service.js';
 import { AdminGuard, AdminScope, GlobalAdminOnly, type SiteScope } from './admin.guard.js';
+import { ReportExportService } from './report-export.service.js';
 
 /** Area amministrativa. Admin di sede: solo la propria sede; admin globale: tutto. */
 @UseGuards(AdminGuard)
@@ -38,6 +41,7 @@ export class AdminController {
     private readonly trips: AdminTripsService,
     private readonly config: AdminConfigService,
     private readonly reports: AbsenceReportsService,
+    private readonly exporter: ReportExportService,
   ) {}
 
   // ---------- admin di sede e globali ----------
@@ -45,6 +49,21 @@ export class AdminController {
   @Get('dashboard')
   dashboard(@CurrentUser() u: SessionUser, @AdminScope() scope: SiteScope, @Query({ schema: dashboardQuerySchema }) q: DashboardQuery) {
     return this.trips.dashboard(u.userId, scope, q);
+  }
+
+  /** Report aggregati per il PSCL in CSV o Excel (stesso ambito e periodo della dashboard). */
+  @Get('export')
+  async export(
+    @CurrentUser() u: SessionUser,
+    @AdminScope() scope: SiteScope,
+    @Query({ schema: exportQuerySchema }) q: ExportQuery,
+  ): Promise<StreamableFile> {
+    const file = await this.exporter.export(u.userId, scope, q);
+    return new StreamableFile(file.body, {
+      type: file.contentType,
+      disposition: `attachment; filename="${file.filename}"`,
+      length: file.body.length,
+    });
   }
 
   @Get('trips')

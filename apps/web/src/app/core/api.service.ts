@@ -16,7 +16,9 @@ import type {
   DashboardDto,
   DashboardQuery,
   DecideAbsenceReportInput,
+  ExportQuery,
   GrantRoleInput,
+  InvitationScope,
   PublishPolicyInput,
   Settings,
   SiteInput,
@@ -99,9 +101,18 @@ export class ApiService {
   searchTrips = (q: SearchTripsInput) => this.get<TripSummaryDto[]>('/trips/search', { ...q });
   myTrips = () => this.get<MyTripsDto>('/trips/mine');
   trip = (id: string) => this.get<TripDetailDto>(`/trips/${id}`);
-  setVisibility = (id: string, visibility: TripVisibility) => this.patch<TripDetailDto>(`/trips/${id}/visibility`, { visibility });
+  setVisibility = (id: string, visibility: TripVisibility, scope: InvitationScope = 'SERIES') =>
+    this.patch<TripDetailDto>(`/trips/${id}/visibility`, { visibility, scope });
   cancelTrip = (id: string) => this.post<void>(`/trips/${id}/cancel`);
-  requestJoin = (id: string, boardingComune: string) => this.post<TripDetailDto>(`/trips/${id}/requests`, { boardingComune });
+  requestJoin = (id: string, boardingComune: string, waitlist = false) =>
+    this.post<TripDetailDto>(`/trips/${id}/requests`, { boardingComune, waitlist });
+
+  // viaggi ricorrenti: gruppo fisso
+  notThere = (id: string) => this.post<TripDetailDto>(`/trips/${id}/not-there`);
+  backThere = (id: string) => this.post<TripDetailDto>(`/trips/${id}/back`);
+  leaveSeries = (id: string) => this.post<void>(`/trips/${id}/series/leave`);
+  removeSeriesMember = (id: string, userId: string) => this.post<TripDetailDto>(`/trips/${id}/series/members/${userId}/remove`);
+  endSeries = (id: string) => this.post<void>(`/trips/${id}/series/end`);
   acceptRequest = (id: string, pid: string) => this.post<TripDetailDto>(`/trips/${id}/participants/${pid}/accept`);
   rejectRequest = (id: string, pid: string) => this.post<TripDetailDto>(`/trips/${id}/participants/${pid}/reject`);
   removeParticipant = (id: string, pid: string) => this.post<TripDetailDto>(`/trips/${id}/participants/${pid}/remove`);
@@ -116,13 +127,15 @@ export class ApiService {
 
   // inviti
   searchColleagues = (q: string) => this.get<(UserSummaryDto & { siteName: string | null })[]>('/users/search', { q });
-  inviteUser = (tripId: string, userId: string) => this.post<InvitationDto>(`/trips/${tripId}/invitations`, { userId });
-  createInviteLink = (tripId: string, expiresInHours: number) =>
-    this.post<InviteLinkDto>(`/trips/${tripId}/invitation-links`, { expiresInHours });
+  inviteUser = (tripId: string, userId: string, scope: InvitationScope = 'TRIP') =>
+    this.post<InvitationDto>(`/trips/${tripId}/invitations`, { userId, scope });
+  createInviteLink = (tripId: string, expiresInHours: number, scope: InvitationScope = 'TRIP') =>
+    this.post<InviteLinkDto>(`/trips/${tripId}/invitation-links`, { expiresInHours, scope });
   revokeInvitation = (id: string) => this.delete<void>(`/invitations/${id}`);
   acceptInvitation = (id: string, boardingComune: string) => this.post<TripDetailDto>(`/invitations/${id}/accept`, { boardingComune });
   declineInvitation = (id: string) => this.post<void>(`/invitations/${id}/decline`);
-  previewInviteLink = (token: string) => this.post<TripSummaryDto>('/invitation-links/preview', { token });
+  previewInviteLink = (token: string) =>
+    this.post<TripSummaryDto & { invitationScope: InvitationScope }>('/invitation-links/preview', { token });
   acceptInviteLink = (token: string, boardingComune: string) =>
     this.post<TripDetailDto>('/invitation-links/accept', { token, boardingComune });
 
@@ -142,6 +155,14 @@ export class ApiService {
 
   // area amministrativa
   adminDashboard = (q: DashboardQuery) => this.get<DashboardDto>('/admin/dashboard', { ...q });
+  /** Report per il PSCL: il file arriva come Blob, con il nome indicato dal server. */
+  adminExport = async (q: ExportQuery): Promise<{ blob: Blob; filename: string }> => {
+    let p = new HttpParams();
+    for (const [k, v] of Object.entries(q)) if (v) p = p.set(k, v);
+    const res = await firstValueFrom(this.http.get(this.base + '/admin/export', { params: p, responseType: 'blob', observe: 'response' }));
+    const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? `report-pscl.${q.format}`;
+    return { blob: res.body!, filename: name };
+  };
   adminTrips = (q: AdminTripsQuery) => this.get<AdminTripDto[]>('/admin/trips', { ...q });
   adminReports = (q: AdminReportsQuery) => this.get<AdminAbsenceReportDto[]>('/admin/reports', { ...q });
   adminReport = (id: string) => this.get<AdminAbsenceReportDto>(`/admin/reports/${id}`);

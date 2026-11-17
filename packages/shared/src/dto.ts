@@ -137,6 +137,21 @@ export interface TripSummaryDto {
   /** Ruolo dell'utente corrente rispetto al viaggio. */
   myRole: 'DRIVER' | 'PARTICIPANT' | 'INVITED' | 'NONE';
   myStatus: ParticipantStatus | null;
+  /** Serie ricorrente: giorni della settimana (1 = lun) e ultima data; null per un viaggio singolo. */
+  recurrence: { weekdays: number[]; endDate: string | null } | null;
+  /** L'utente corrente fa parte del gruppo fisso della serie. */
+  isSeriesMember: boolean;
+}
+
+/** Una data di una serie ricorrente, vista dal conducente o da un membro fisso. */
+export interface SeriesDateDto {
+  tripId: string;
+  date: string;
+  status: TripStatus;
+  visibility: TripVisibility;
+  seats: number;
+  seatsTaken: number;
+  myStatus: ParticipantStatus | null;
 }
 
 export interface TripDetailDto extends TripSummaryDto {
@@ -146,8 +161,16 @@ export interface TripDetailDto extends TripSummaryDto {
   invitations?: InvitationDto[];
   /** Invito personale in sospeso dell'utente corrente, se presente. */
   myInvitationId?: string;
+  /** TRIP: invito per questa data; SERIES: invito nel gruppo fisso della serie. */
+  myInvitationScope?: InvitationScope;
   canCancelWithoutPenalty: boolean;
   cancellationDeadline: string;
+  /** Prossime date della serie (solo conducente e membri fissi; assente per i viaggi singoli). */
+  seriesDates?: SeriesDateDto[];
+  /** Gruppo fisso della serie (solo conducente e membri fissi). */
+  seriesMembers?: (UserSummaryDto & { boardingComuneName: string })[];
+  /** Utenti in lista d'attesa per questa data (solo il conducente vede chi sono; gli altri il numero). */
+  waitlistCount: number;
 }
 
 export interface InvitationDto {

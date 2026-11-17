@@ -24,9 +24,9 @@ La classificazione si trova in `apps/api/src/notifications/notifications.service
 
 | Categoria | Tipi | Push | Email | Consenso |
 |---|---|---|---|---|
-| Essenziale | `TRIP_CANCELLED`, `TRIP_RESCHEDULED`, `REQUEST_ACCEPTED`, `REQUEST_REJECTED`, `REMOVED_FROM_TRIP`, `INVITATION`, `ACCOUNT_DEACTIVATED` | sì, se attivata | sempre | no (6.1.b) |
-| Operativa | `JOIN_REQUEST`, `PARTICIPANT_LEFT`, `INVITATION_ACCEPTED`, `INVITATION_DECLINED`, `CHAT_MESSAGES` | sì, se attivata | mai | no (6.1.b) |
-| Facoltativa | `TRIP_REMINDER`, `FAVORITE_NEW_TRIP`, `DIGEST` | solo con consenso | solo con consenso | `optionalNotifications` (6.1.a) |
+| Essenziale | `TRIP_CANCELLED`, `TRIP_RESCHEDULED`, `REQUEST_ACCEPTED`, `REQUEST_REJECTED`, `REMOVED_FROM_TRIP`, `INVITATION`, `ACCOUNT_DEACTIVATED`, `SEAT_AVAILABLE` (lista d'attesa), `SERIES_CANCELLED`, `REMOVED_FROM_SERIES` | sì, se attivata | sempre | no (6.1.b) |
+| Operativa | `JOIN_REQUEST`, `PARTICIPANT_LEFT`, `MEMBER_NOT_THERE`, `MEMBER_LEFT_SERIES`, `INVITATION_ACCEPTED`, `INVITATION_DECLINED`, `CHAT_MESSAGES` | sì, se attivata | mai | no (6.1.b) |
+| Facoltativa | `TRIP_REMINDER_EVENING`, `TRIP_REMINDER`, `FAVORITE_NEW_TRIP`, `DIGEST` | solo con consenso | solo con consenso | `optionalNotifications` (6.1.a) |
 
 - **Push.** L'attivazione avviene sempre per scelta dell'utente sul singolo dispositivo, tramite il permesso del browser.
 - **Testi.** Sono sempre generici, sia nelle push sia nelle email.
@@ -43,12 +43,14 @@ La classificazione si trova in `apps/api/src/notifications/notifications.service
 | Email per le notifiche | PostgreSQL, `User.emailEnc` e `EmailVerification.emailEnc` | AES-256-GCM. Del codice di verifica si salva solo l'HMAC. Il codice scade dopo 15 minuti e ammette 5 tentativi; si possono chiedere al massimo un codice al minuto e 5 codici all'ora. Le verifiche non completate si cancellano dopo 24 ore; l'email si cancella alla disattivazione |
 | Testi della chat | PostgreSQL, campo `bodyEnc` | AES-256-GCM, cancellazione automatica dopo 30 giorni (configurabile) |
 | Motivazioni delle segnalazioni e note degli admin | PostgreSQL, `AbsenceReport` | AES-256-GCM; visibili solo agli admin della sede (accesso registrato), cancellate dopo 12 mesi |
-| Sessioni | PostgreSQL | Si salva solo l'hash SHA-256 del token |
-| Link d'invito | PostgreSQL | Solo l'hash del token; il token sta nel frammento `#` dell'URL e quindi non finisce nei log del server |
+| Sessioni | PostgreSQL | Si salva solo l'hash SHA-256 del token; le sessioni scadute si cancellano ogni notte |
+| Link d'invito | PostgreSQL | Solo l'hash del token; il token sta nel frammento `#` dell'URL e quindi non finisce nei log del server. Inviti scaduti, revocati o usati si cancellano dopo 30 giorni (configurabile) |
 | Contatori anti brute-force | PostgreSQL | Chiavi HMAC di username e IP, nessun dato in chiaro |
 | Statistiche personali | PostgreSQL, `UserStatEntry` | Visibili solo all'interessato; si cancellano con l'account |
 | Statistiche aggregate | PostgreSQL, `TripStatFact` | Anonime: sede, data, posti, passeggeri, km e risparmi, senza identificativi di utenti. Restano dopo la cancellazione degli account |
-| Audit log | PostgreSQL, `AuditLog` | Append-only (trigger che vietano modifiche e cancellazioni) con catena di hash; solo UUID e codici di azione, nessun dato in chiaro |
+| Viaggi, partecipazioni, gruppi fissi | PostgreSQL | Cancellati 12 mesi dopo la data del viaggio (configurabile); restano i fatti anonimi |
+| Report esportati (CSV/Excel) | File scaricati dagli admin | Solo aggregati per sede e mese; sotto la soglia minima (5 viaggi completati, configurabile) i valori non si pubblicano; ogni esportazione è nell'audit log |
+| Audit log | PostgreSQL, `AuditLog` | Append-only (trigger che vietano modifiche e cancellazioni) con catena di hash; solo UUID e codici di azione, nessun dato in chiaro. Le righe oltre 24 mesi (configurabile, minimo 6) si cancellano solo tramite la funzione `audit_log_purge`, che lascia un'ancora per verificare la catena |
 | Log applicativi | stdout del processo | Senza corpo delle richieste, cookie, query string, nomi, indirizzi email né codici di verifica; utenti solo come pseudonimo HMAC |
 | Log di accesso del reverse proxy | Da definire con l'installazione | Raccomandato: senza query string né cookie, IP troncato |
 

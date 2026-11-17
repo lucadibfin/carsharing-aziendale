@@ -223,9 +223,9 @@ Lo smoke test e2e `admin.spec.ts` apre tutte le sezioni dell'area amministrativa
   - coordinate dei comuni dai confini ISTAT: `npm run coords:istat -w api -- <confini.shp>`, poi `npm run db:seed -w api` ([docs/distanze.md](docs/distanze.md#coordinate-dei-comuni-fonte-istat)).
 - Aggiornamento dell'elenco dei comuni (elenco SITUAS a oggi, confini al 1° gennaio): `npm run comuni:istat -w api -- <situas.csv> --al <data estrazione>`, poi `coords:istat` e `db:seed`. Ricodifiche, fusioni e incorporazioni sono gestite come descritto in [docs/distanze.md](docs/distanze.md#elenco-e-confini-date-diverse).
 - [x] **Grafica white label**: design token, marchi `default` e `fincons`, icone PWA generate, contrasto WCAG AA verificato dai test.
-- [ ] **Fase 3**:
-  - viaggi ricorrenti e membri fissi;
-  - lista d'attesa;
-  - promemoria;
-  - export CSV/Excel;
-  - retention completa.
+- [x] **Fase 3** ([dettagli](docs/fase3.md)):
+  - viaggi ricorrenti con gruppo fisso, "non ci sono" per una singola data e data resa pubblica;
+  - lista d'attesa con avviso quando si libera un posto;
+  - promemoria facoltativi la sera prima e prima della partenza;
+  - report aggregati per il PSCL in CSV ed Excel, con soglia minima;
+  - conservazione automatica di viaggi conclusi, inviti, sessioni e audit log.

@@ -85,7 +85,7 @@ import { EmailVerifyComponent } from '../shared/email-verify.component';
               Rendimi trovabile nella ricerca colleghi per gli inviti
             </mat-slide-toggle>
             <mat-slide-toggle [checked]="p.consents.optionalNotifications" (change)="setConsent('optionalNotifications', $event.checked)">
-              Notifiche facoltative (promemoria, nuovi viaggi dei preferiti, riepiloghi)
+              Notifiche facoltative (promemoria la sera prima e prima della partenza, nuovi viaggi dei preferiti, riepiloghi)
             </mat-slide-toggle>
             <p class="muted small">Puoi revocare ogni consenso in qualsiasi momento, senza alcuna conseguenza.</p>
             <a mat-button routerLink="/informativa">Leggi l'informativa privacy e i termini d'uso</a>

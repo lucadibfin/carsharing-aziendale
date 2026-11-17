@@ -61,6 +61,7 @@ export class StyleguidePage {
     driver: { id: 'u1', firstName: 'Giulia', lastName: 'Rossi' },
     stops: [{ order: 0, comuneIstat: '015146', comuneName: 'Monza' }, { order: 1, comuneIstat: '015209', comuneName: 'Sesto San Giovanni' }],
     meetingPoint: null, myRole: 'PARTICIPANT', myStatus: 'ACCEPTED',
+    recurrence: { weekdays: [1, 3, 5], endDate: null }, isSeriesMember: true,
   };
 
   constructor() {

@@ -81,7 +81,7 @@ import { MarkdownPipe } from '../shared/markdown.pipe';
                 Rendimi trovabile nella ricerca colleghi per ricevere inviti
               </mat-slide-toggle>
               <mat-slide-toggle [(ngModel)]="consents.optionalNotifications">
-                Inviami anche le notifiche facoltative: promemoria prima della partenza, nuovi viaggi dei colleghi preferiti, riepiloghi
+                Inviami anche le notifiche facoltative: promemoria la sera prima e prima della partenza, nuovi viaggi dei colleghi preferiti, riepiloghi
               </mat-slide-toggle>
             </div>
             <div class="actions"><button mat-flat-button matStepperNext>Continua</button></div>

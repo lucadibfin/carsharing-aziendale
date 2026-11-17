@@ -15,13 +15,19 @@ export type NotificationType =
   | 'REMOVED_FROM_TRIP'
   | 'INVITATION'
   | 'ACCOUNT_DEACTIVATED'
+  | 'SEAT_AVAILABLE'
+  | 'SERIES_CANCELLED'
+  | 'REMOVED_FROM_SERIES'
   // facoltative (solo con consenso)
+  | 'TRIP_REMINDER_EVENING'
   | 'TRIP_REMINDER'
   | 'FAVORITE_NEW_TRIP'
   | 'DIGEST'
   // solo push
   | 'JOIN_REQUEST'
   | 'PARTICIPANT_LEFT'
+  | 'MEMBER_NOT_THERE'
+  | 'MEMBER_LEFT_SERIES'
   | 'INVITATION_ACCEPTED'
   | 'INVITATION_DECLINED'
   | 'CHAT_MESSAGES';
@@ -46,11 +52,18 @@ export const NOTIFICATION_CATEGORY: Record<NotificationType, NotificationCategor
   REMOVED_FROM_TRIP: 'ESSENTIAL',
   INVITATION: 'ESSENTIAL',
   ACCOUNT_DEACTIVATED: 'ESSENTIAL',
+  // L'utente si è messo in lista d'attesa proprio per ricevere questo avviso.
+  SEAT_AVAILABLE: 'ESSENTIAL',
+  SERIES_CANCELLED: 'ESSENTIAL',
+  REMOVED_FROM_SERIES: 'ESSENTIAL',
+  TRIP_REMINDER_EVENING: 'OPTIONAL',
   TRIP_REMINDER: 'OPTIONAL',
   FAVORITE_NEW_TRIP: 'OPTIONAL',
   DIGEST: 'OPTIONAL',
   JOIN_REQUEST: 'PUSH_ONLY',
   PARTICIPANT_LEFT: 'PUSH_ONLY',
+  MEMBER_NOT_THERE: 'PUSH_ONLY',
+  MEMBER_LEFT_SERIES: 'PUSH_ONLY',
   INVITATION_ACCEPTED: 'PUSH_ONLY',
   INVITATION_DECLINED: 'PUSH_ONLY',
   CHAT_MESSAGES: 'PUSH_ONLY',
@@ -73,7 +86,16 @@ const TEXTS: Record<NotificationType, { title: string; body: string }> = {
       'Il tuo account nell’app è stato disattivato perché non risulti più tra i dipendenti attivi. ' +
       'I viaggi futuri sono stati annullati e i tuoi dati personali saranno cancellati.',
   },
-  TRIP_REMINDER: { title: 'Promemoria', body: 'Tra poco parte un viaggio a cui partecipi.' },
+  SEAT_AVAILABLE: {
+    title: 'Si è liberato un posto',
+    body: 'Si è liberato un posto in un viaggio per cui sei in lista d’attesa: puoi chiederlo dall’app.',
+  },
+  SERIES_CANCELLED: { title: 'Viaggio ricorrente terminato', body: 'Il conducente ha terminato un viaggio ricorrente: le date future sono annullate.' },
+  REMOVED_FROM_SERIES: { title: 'Gruppo fisso', body: 'Il conducente ti ha tolto dal gruppo fisso di un viaggio ricorrente.' },
+  TRIP_REMINDER_EVENING: { title: 'Promemoria', body: 'Domani hai un viaggio in programma.' },
+  TRIP_REMINDER: { title: 'Promemoria', body: 'Tra poco si parte per un viaggio a cui partecipi.' },
+  MEMBER_NOT_THERE: { title: 'Posto libero', body: 'Un membro del gruppo fisso non ci sarà in una data: il suo posto è libero.' },
+  MEMBER_LEFT_SERIES: { title: 'Gruppo fisso', body: 'Un membro ha lasciato il gruppo fisso di un tuo viaggio ricorrente.' },
   FAVORITE_NEW_TRIP: { title: 'Nuovo viaggio', body: 'Un collega tra i tuoi preferiti ha proposto un nuovo viaggio.' },
   DIGEST: { title: 'Riepilogo', body: 'C’è un nuovo riepilogo dei tuoi viaggi.' },
   JOIN_REQUEST: { title: 'Nuova richiesta', body: 'Hai una nuova richiesta di partecipazione a un tuo viaggio.' },

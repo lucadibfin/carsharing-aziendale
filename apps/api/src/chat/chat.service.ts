@@ -77,15 +77,19 @@ export class ChatService implements OnModuleInit {
     }
   }
 
-  /** Membri della chat: conducente e partecipanti accettati delle date non annullate. */
+  /** Membri della chat: conducente, gruppo fisso e partecipanti accettati delle date non annullate. */
   async members(seriesId: string): Promise<string[]> {
-    const series = await this.prisma.tripSeries.findUnique({ where: { id: seriesId }, select: { driverId: true } });
+    const series = await this.prisma.tripSeries.findUnique({
+      where: { id: seriesId },
+      select: { driverId: true, members: { select: { userId: true } } },
+    });
     const parts = await this.prisma.tripParticipant.findMany({
       where: { status: 'ACCEPTED', trip: { seriesId, status: { not: 'CANCELLED' } } },
       select: { userId: true },
       distinct: ['userId'],
     });
-    return [...new Set([series?.driverId, ...parts.map((p) => p.userId)].filter((x): x is string => Boolean(x)))];
+    const fixed = series?.members.map((m) => m.userId) ?? [];
+    return [...new Set([series?.driverId, ...fixed, ...parts.map((p) => p.userId)].filter((x): x is string => Boolean(x)))];
   }
 
   async purgeExpired(): Promise<number> {

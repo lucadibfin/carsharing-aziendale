@@ -5,10 +5,11 @@ import { AdminConfigService } from './admin-config.service.js';
 import { AdminTripsService } from './admin-trips.service.js';
 import { AdminController } from './admin.controller.js';
 import { AdminGuard } from './admin.guard.js';
+import { ReportExportService } from './report-export.service.js';
 
 @Module({
   imports: [TripsModule, PoliciesModule],
   controllers: [AdminController],
-  providers: [AdminGuard, AdminTripsService, AdminConfigService],
+  providers: [AdminGuard, AdminTripsService, AdminConfigService, ReportExportService],
 })
 export class AdminModule {}

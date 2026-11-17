@@ -7,7 +7,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
-import { createTripSchema, type TripVisibility } from '@fcs/shared';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { createTripSchema, type TripVisibility, WEEKDAY_LABELS } from '@fcs/shared';
 import { ApiService } from '../core/api.service';
 import { ReferenceStore } from '../core/reference.store';
 import { SessionStore } from '../core/session.store';
@@ -17,7 +19,10 @@ import { todayIso } from '../shared/dates';
 
 @Component({
   selector: 'app-trip-new-page',
-  imports: [FormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatButtonToggleModule, MatIconModule, ComunePickerComponent],
+  imports: [
+    FormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatButtonToggleModule, MatIconModule,
+    MatCheckboxModule, MatSlideToggleModule, ComunePickerComponent,
+  ],
   template: `
     <div class="page">
       <h1 class="page-title">Proponi un viaggio</h1>
@@ -28,10 +33,36 @@ import { todayIso } from '../shared/dates';
             @for (s of ref.sites(); track s.id) { <mat-option [value]="s.id">{{ s.name }}</mat-option> }
           </mat-select>
         </mat-form-field>
-        <mat-form-field>
-          <mat-label>Data</mat-label>
-          <input matInput type="date" [(ngModel)]="date" name="date" [min]="today" required />
-        </mat-form-field>
+        <mat-slide-toggle [(ngModel)]="recurring" name="recurring">Si ripete ogni settimana</mat-slide-toggle>
+        @if (recurring) {
+          <fieldset class="weekdays">
+            <legend>In quali giorni?</legend>
+            <div class="row wrap">
+              @for (d of weekdayOptions; track d.value) {
+                <mat-checkbox [checked]="weekdays().includes(d.value)" (change)="toggleDay(d.value, $event.checked)">{{ d.label }}</mat-checkbox>
+              }
+            </div>
+          </fieldset>
+        }
+        <div class="row">
+          <mat-form-field class="grow">
+            <mat-label>{{ recurring ? 'Dal' : 'Data' }}</mat-label>
+            <input matInput type="date" [(ngModel)]="date" name="date" [min]="today" required />
+          </mat-form-field>
+          @if (recurring) {
+            <mat-form-field class="grow">
+              <mat-label>Fino al</mat-label>
+              <input matInput type="date" [(ngModel)]="endDate" name="endDate" [min]="date" />
+              <mat-hint>Facoltativa</mat-hint>
+            </mat-form-field>
+          }
+        </div>
+        @if (recurring) {
+          <p class="muted small">
+            Senza data di fine il viaggio continua finché non lo termini. Puoi invitare dei colleghi nel <strong>gruppo fisso</strong>: saranno confermati in tutte le date e potranno
+            dire "non ci sono" per una singola data.
+          </p>
+        }
         <div class="row">
           <mat-form-field class="grow">
             <mat-label>Arrivo in ufficio</mat-label>
@@ -92,6 +123,10 @@ import { todayIso } from '../shared/dates';
     </div>
   `,
   styles: `
+    .weekdays { border: 0; margin: 0; padding: 0; }
+    .weekdays legend { font: var(--mat-sys-body-medium); color: var(--mat-sys-on-surface-variant); margin-bottom: var(--app-space-1); }
+    .wrap { flex-wrap: wrap; gap: 0 var(--app-space-2); }
+    .small { font-size: 0.85em; margin: 0; }
     .via app-comune-picker { flex: 1 1 auto; }
     mat-button-toggle-group { display: flex; }
     mat-button-toggle { flex: 1; }
@@ -105,8 +140,12 @@ export class TripNewPage implements OnInit {
   protected readonly ref = inject(ReferenceStore);
 
   protected readonly today = todayIso();
+  protected readonly weekdayOptions = [1, 2, 3, 4, 5, 6, 7].map((value) => ({ value, label: WEEKDAY_LABELS[value]! }));
   protected siteId: string | null = null;
   protected date = todayIso(1);
+  protected recurring = false;
+  protected readonly weekdays = signal<number[]>([1, 2, 3, 4, 5]);
+  protected endDate = '';
   protected arrivalTime = '08:30';
   protected returnTime = '17:30';
   protected departure: string | null = null;
@@ -121,6 +160,10 @@ export class TripNewPage implements OnInit {
     await this.ref.loadSites();
     this.siteId = this.session.me()?.siteId ?? null;
     this.departure = this.session.me()?.comuneIstat ?? null;
+  }
+
+  protected toggleDay(day: number, on: boolean): void {
+    this.weekdays.update((w) => (on ? [...w, day].sort() : w.filter((d) => d !== day)));
   }
 
   protected addVia(): void {
@@ -145,9 +188,15 @@ export class TripNewPage implements OnInit {
       this.toast.info('Indica sede, data, orario di arrivo e comune di partenza');
       return;
     }
+    if (this.recurring && this.weekdays().length === 0) {
+      this.toast.info('Scegli almeno un giorno della settimana');
+      return;
+    }
     const parsed = createTripSchema.safeParse({
       siteId: this.siteId,
       date: this.date,
+      weekdays: this.recurring ? this.weekdays() : [],
+      endDate: this.recurring && this.endDate ? this.endDate : null,
       arrivalTime: this.arrivalTime,
       returnTime: this.returnTime || null,
       departureComune: this.departure,

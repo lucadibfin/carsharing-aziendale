@@ -23,6 +23,7 @@ import type { SessionUser } from '../auth/session.service.js';
 import { AbsenceReportsService } from './absence-reports.service.js';
 import { InvitationsService } from './invitations.service.js';
 import { ParticipationService } from './participation.service.js';
+import { SeriesService } from './series.service.js';
 import { TripsService } from './trips.service.js';
 
 @Controller('trips')
@@ -32,6 +33,7 @@ export class TripsController {
     private readonly participation: ParticipationService,
     private readonly invitations: InvitationsService,
     private readonly reports: AbsenceReportsService,
+    private readonly series: SeriesService,
   ) {}
 
   @Post()
@@ -60,7 +62,7 @@ export class TripsController {
     @Param('id', { schema: id }) tripId: string,
     @Body({ schema: updateVisibilitySchema }) body: UpdateVisibilityInput,
   ) {
-    return this.trips.changeVisibility(tripId, u.userId, body.visibility);
+    return this.trips.changeVisibility(tripId, u.userId, body.visibility, body.scope);
   }
 
   @Post(':id/cancel')
@@ -75,7 +77,7 @@ export class TripsController {
     @Param('id', { schema: id }) tripId: string,
     @Body({ schema: joinRequestSchema }) body: JoinRequestInput,
   ) {
-    return this.participation.request(tripId, u.userId, body.boardingComune);
+    return this.participation.request(tripId, u.userId, body.boardingComune, body.waitlist ?? false);
   }
 
   @Post(':id/participants/:pid/accept')
@@ -100,6 +102,41 @@ export class TripsController {
   @HttpCode(200)
   leave(@CurrentUser() u: SessionUser, @Param('id', { schema: id }) tripId: string) {
     return this.participation.leave(tripId, u.userId);
+  }
+
+  // ---------- viaggi ricorrenti: gruppo fisso ----------
+
+  /** Membro fisso: "non ci sono" per questa data (il posto si libera). */
+  @Post(':id/not-there')
+  @HttpCode(200)
+  notThere(@CurrentUser() u: SessionUser, @Param('id', { schema: id }) tripId: string) {
+    return this.series.notThere(tripId, u.userId);
+  }
+
+  /** Membro fisso: torna disponibile per questa data. */
+  @Post(':id/back')
+  @HttpCode(200)
+  back(@CurrentUser() u: SessionUser, @Param('id', { schema: id }) tripId: string) {
+    return this.series.backThere(tripId, u.userId);
+  }
+
+  @Post(':id/series/leave')
+  @HttpCode(204)
+  async leaveSeries(@CurrentUser() u: SessionUser, @Param('id', { schema: id }) tripId: string): Promise<void> {
+    await this.series.leave(tripId, u.userId);
+  }
+
+  @Post(':id/series/members/:userId/remove')
+  @HttpCode(200)
+  removeMember(@CurrentUser() u: SessionUser, @Param('id', { schema: id }) tripId: string, @Param('userId', { schema: id }) memberId: string) {
+    return this.series.removeMember(tripId, u.userId, memberId);
+  }
+
+  /** Il conducente termina la serie: annulla tutte le date future. */
+  @Post(':id/series/end')
+  @HttpCode(204)
+  async endSeries(@CurrentUser() u: SessionUser, @Param('id', { schema: id }) tripId: string): Promise<void> {
+    await this.series.end(tripId, u.userId);
   }
 
   @Post(':id/close')
@@ -133,7 +170,7 @@ export class TripsController {
     @Param('id', { schema: id }) tripId: string,
     @Body({ schema: inviteUserSchema }) body: InviteUserInput,
   ) {
-    return this.invitations.inviteUser(tripId, u.userId, body.userId);
+    return this.invitations.inviteUser(tripId, u.userId, body.userId, body.scope);
   }
 
   @Post(':id/invitation-links')
@@ -142,6 +179,6 @@ export class TripsController {
     @Param('id', { schema: id }) tripId: string,
     @Body({ schema: createInviteLinkSchema }) body: CreateInviteLinkInput,
   ) {
-    return this.invitations.createLink(tripId, u.userId, body.expiresInHours);
+    return this.invitations.createLink(tripId, u.userId, body.expiresInHours, body.scope);
   }
 }

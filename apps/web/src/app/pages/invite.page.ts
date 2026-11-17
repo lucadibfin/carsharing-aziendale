@@ -5,7 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
-import type { TripSummaryDto } from '@fcs/shared';
+import type { InvitationScope, TripSummaryDto } from '@fcs/shared';
 import { ApiService, errorMessage } from '../core/api.service';
 import { ToastService } from '../core/toast.service';
 import { TripCardComponent } from '../shared/trip-card.component';
@@ -30,6 +30,10 @@ const STORAGE_KEY = 'pendingInviteToken';
         <div class="actions"><a mat-button routerLink="/">Vai alla home</a></div>
       }
       @if (trip(); as t) {
+        @if (t.invitationScope === 'SERIES') {
+          <p>Sei invitato nel <strong>gruppo fisso</strong> di un viaggio ricorrente: sarai confermato in tutte le date,
+            finché c'è posto, e potrai dire "non ci sono" per una singola data. Qui sotto la prossima data.</p>
+        }
         <app-trip-card [trip]="t" />
         <mat-form-field class="full-width pick">
           <mat-label>Dove sali?</mat-label>
@@ -50,7 +54,7 @@ export class InvitePage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
-  protected readonly trip = signal<TripSummaryDto | null>(null);
+  protected readonly trip = signal<(TripSummaryDto & { invitationScope: InvitationScope }) | null>(null);
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
   protected readonly error = signal('');

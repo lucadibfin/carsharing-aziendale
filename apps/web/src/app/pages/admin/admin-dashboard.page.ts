@@ -2,6 +2,7 @@ import { DecimalPipe, PercentPipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import type { DashboardDto, DashboardTotalsDto } from '@fcs/shared';
 import { ApiService } from '../../core/api.service';
@@ -10,11 +11,16 @@ import { AdminFiltersComponent } from './admin-filters.component';
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [DecimalPipe, PercentPipe, MatButtonModule, MatCardModule, MatProgressBarModule, AdminFiltersComponent],
+  imports: [DecimalPipe, PercentPipe, MatButtonModule, MatCardModule, MatIconModule, MatProgressBarModule, AdminFiltersComponent],
   template: `
     <app-admin-filters [(siteId)]="siteId" [(from)]="from" [(to)]="to" (ready)="load()">
       <button mat-flat-button (click)="load()">Aggiorna</button>
     </app-admin-filters>
+    <div class="row export">
+      <span class="muted grow">Report per il PSCL, una riga per sede e mese, con i filtri scelti:</span>
+      <button mat-stroked-button (click)="download('xlsx')" [disabled]="exporting()"><mat-icon svgIcon="table_view" />Excel</button>
+      <button mat-stroked-button (click)="download('csv')" [disabled]="exporting()"><mat-icon svgIcon="download" />CSV</button>
+    </div>
     @if (loading()) { <mat-progress-bar mode="indeterminate" /> }
     @if (data(); as d) {
       <div class="grid">
@@ -87,6 +93,7 @@ import { AdminFiltersComponent } from './admin-filters.component';
     .value { font: var(--mat-sys-headline-small); }
     .label { color: var(--mat-sys-on-surface-variant); font: var(--mat-sys-body-small); }
     .small { font-size: 0.85em; margin-top: var(--app-space-3); }
+    .export { flex-wrap: wrap; margin: var(--app-space-2) 0; }
   `,
 })
 export class AdminDashboardPage {
@@ -106,6 +113,30 @@ export class AdminDashboardPage {
       this.toast.error(e);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  protected readonly exporting = signal(false);
+
+  async download(format: 'csv' | 'xlsx'): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const { blob, filename } = await this.api.adminExport({
+        format,
+        siteId: this.siteId || undefined,
+        from: this.from || undefined,
+        to: this.to || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      this.toast.error(e);
+    } finally {
+      this.exporting.set(false);
     }
   }
 

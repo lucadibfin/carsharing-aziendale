@@ -9,6 +9,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { SettingsService } from '../settings/settings.service.js';
 import { ChatMembershipEvents } from '../trips/chat-membership.events.js';
 import { TripsService } from '../trips/trips.service.js';
+import { WaitlistService } from '../trips/waitlist.service.js';
 
 /**
  * Ciclo di vita dell'account.
@@ -40,6 +41,7 @@ export class UserLifecycleService implements OnModuleInit {
     private readonly audit: AuditService,
     private readonly settings: SettingsService,
     private readonly queue: JobQueue,
+    private readonly waitlist: WaitlistService,
   ) {}
 
   onModuleInit(): void {
@@ -126,13 +128,18 @@ export class UserLifecycleService implements OnModuleInit {
       await this.notifications.notify(toNotify, 'TRIP_CANCELLED', t.id);
       for (const u of toNotify) await this.chatEvents.membershipChanged(t.seriesId, u);
     }
+    // Esce dai gruppi fissi: le prossime date non lo includono più.
+    await this.prisma.seriesMember.deleteMany({ where: { userId } });
     const parts = await this.prisma.tripParticipant.findMany({
-      where: { userId, status: { in: ['REQUESTED', 'ACCEPTED', 'WAITLISTED'] }, trip: { status: 'SCHEDULED', arrivalAt: { gt: now } } },
+      where: { userId, status: { in: ['REQUESTED', 'ACCEPTED', 'WAITLISTED', 'NOT_THERE'] }, trip: { status: 'SCHEDULED', arrivalAt: { gt: now } } },
       include: { trip: { select: { id: true, series: { select: { driverId: true } } } } },
     });
     for (const p of parts) {
       await this.prisma.tripParticipant.update({ where: { id: p.id }, data: { status: 'CANCELLED', cancelledAt: now } });
-      if (p.status === 'ACCEPTED') await this.notifications.notify([p.trip.series.driverId], 'PARTICIPANT_LEFT', p.trip.id);
+      if (p.status === 'ACCEPTED') {
+        await this.notifications.notify([p.trip.series.driverId], 'PARTICIPANT_LEFT', p.trip.id);
+        await this.waitlist.seatFreed(p.trip.id);
+      }
     }
     await this.prisma.invitation.updateMany({ where: { inviteeId: userId, status: 'PENDING' }, data: { status: 'REVOKED', revokedAt: now } });
     return { cancelledTrips: driven.length, cancelledParticipations: parts.length };

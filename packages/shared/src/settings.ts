@@ -56,6 +56,20 @@ export const settingsSchema = z.object({
   closureWindowDays: z.number().int().min(1).max(60).default(7),
   /** Giorni tra la disattivazione di un ex dipendente e la cancellazione definitiva dei suoi dati. */
   deactivatedPurgeDays: z.number().int().min(0).max(90).default(30),
+  /** Viaggi ricorrenti: per quanti giorni in avanti si generano le date (job notturno). */
+  recurringHorizonDays: z.number().int().min(7).max(90).default(28),
+  /** Promemoria della sera prima: ora (Europe/Rome) da cui parte l'invio. */
+  reminderEveningHour: z.number().int().min(12).max(23).default(20),
+  /** Promemoria prima della partenza: minuti di anticipo rispetto alla partenza stimata. */
+  reminderBeforeDepartureMinutes: z.number().int().min(15).max(180).default(60),
+  /** Mesi di conservazione dei viaggi conclusi (dalla data del viaggio). Restano i fatti anonimi. */
+  tripRetentionMonths: z.number().int().min(1).max(60).default(12),
+  /** Giorni di conservazione degli inviti scaduti, revocati o già usati. */
+  inviteRetentionDays: z.number().int().min(1).max(365).default(30),
+  /** Mesi di conservazione dell'audit log (minimo 6, imposto anche dal database). */
+  auditRetentionMonths: z.number().int().min(6).max(120).default(24),
+  /** Report esportati: sotto questo numero di viaggi completati i valori di una riga non si pubblicano. */
+  exportMinTrips: z.number().int().min(1).max(50).default(5),
   /** Alimentazione ipotizzata quando il conducente non ha indicato i dati dell'auto. */
   defaultFuelType: z.enum(FuelType).default('PETROL'),
   fuelProfiles: z

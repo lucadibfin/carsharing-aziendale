@@ -10,6 +10,7 @@ import type {
 import { AppException, Forbidden } from '../common/errors.js';
 import { Clock } from '../common/clock.js';
 import { PrismaService } from '../common/prisma.service.js';
+import { MAX_SERIES_DAYS } from '@fcs/shared';
 import { addDays, dateOnly, romeToUtc, todayInRome } from '../common/time.js';
 import { FavoritesService } from '../favorites/favorites.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -17,8 +18,10 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { SettingsService } from '../settings/settings.service.js';
 import { StatsService } from '../stats/stats.service.js';
 import { ChatMembershipEvents } from './chat-membership.events.js';
+import { firstOccurrence } from './series-dates.js';
+import { SeriesMaterializer } from './series-materializer.js';
 import { TripAccessPolicy } from './trip-access.policy.js';
-import { tripInclude } from './trip-loader.js';
+import { type LoadedTrip, tripInclude } from './trip-loader.js';
 import { TripMapper } from './trip-mapper.js';
 
 /** Visibilità effettiva PUBBLICA, espressa come filtro Prisma. */
@@ -38,6 +41,7 @@ export class TripsService {
     private readonly chatEvents: ChatMembershipEvents,
     private readonly stats: StatsService,
     private readonly favorites: FavoritesService,
+    private readonly materializer: SeriesMaterializer,
   ) {}
 
   async create(userId: string, input: CreateTripInput): Promise<TripDetailDto> {
@@ -47,8 +51,18 @@ export class TripsService {
     if (input.date < today || input.date > addDays(today, maxDaysAhead)) {
       throw new AppException('INVALID_DATE', `La data deve essere compresa tra oggi e i prossimi ${maxDaysAhead} giorni`);
     }
-    const arrivalAt = romeToUtc(input.date, input.arrivalTime);
-    if (arrivalAt <= now) throw new AppException('INVALID_DATE', 'L’orario di arrivo è già passato');
+    const recurring = input.weekdays.length > 0;
+    if (recurring) {
+      if (input.endDate && input.endDate > addDays(input.date, MAX_SERIES_DAYS)) {
+        throw new AppException('INVALID_DATE', 'Una serie ricorrente può durare al massimo un anno');
+      }
+      const first = firstOccurrence(input.weekdays, input.date);
+      if (!first || (input.endDate && first > input.endDate)) {
+        throw new AppException('INVALID_DATE', 'Nel periodo indicato non c’è nessuno dei giorni scelti');
+      }
+    } else if (romeToUtc(input.date, input.arrivalTime) <= now) {
+      throw new AppException('INVALID_DATE', 'L’orario di arrivo è già passato');
+    }
 
     const site = await this.prisma.site.findFirst({ where: { id: input.siteId, active: true }, select: { id: true } });
     if (!site) throw new AppException('INVALID_SITE', 'Sede non valida');
@@ -56,14 +70,15 @@ export class TripsService {
     const found = await this.prisma.comune.count({ where: { istat: { in: codes }, active: true } });
     if (found !== codes.length) throw new AppException('INVALID_COMUNE', 'Uno o più comuni non sono validi');
 
-    const trip = await this.prisma.$transaction(async (tx) => {
+    const tripId = await this.prisma.$transaction(async (tx) => {
       const series = await tx.tripSeries.create({
         data: {
           driverId: userId,
           siteId: input.siteId,
           visibility: input.visibility,
+          weekdays: [...input.weekdays].sort(),
           startDate: dateOnly(input.date),
-          endDate: dateOnly(input.date),
+          endDate: recurring ? (input.endDate ? dateOnly(input.endDate) : null) : dateOnly(input.date),
           arrivalTime: input.arrivalTime,
           returnTime: input.returnTime ?? null,
           seats: input.seats,
@@ -72,6 +87,11 @@ export class TripsService {
           stops: { create: codes.map((comuneIstat, order) => ({ order, comuneIstat })) },
         },
       });
+      if (recurring) {
+        const ids = await this.materializer.materialize(series.id, tx);
+        if (!ids[0]) throw new AppException('INVALID_DATE', 'Nel periodo indicato non ci sono date future');
+        return ids[0];
+      }
       const created = await tx.trip.create({
         data: {
           seriesId: series.id,
@@ -79,15 +99,17 @@ export class TripsService {
           date: dateOnly(input.date),
           arrivalTime: input.arrivalTime,
           returnTime: input.returnTime ?? null,
-          arrivalAt,
+          arrivalAt: romeToUtc(input.date, input.arrivalTime),
           seats: input.seats,
+          createdAt: now,
         },
       });
       await this.stats.syncFact(created.id, tx);
-      return created;
+      return created.id;
     });
-    await this.favorites.notifyNewTrip(trip.id);
-    return this.detail(trip.id, userId);
+    // Per una serie si avvisano i preferiti una sola volta, sulla prima data.
+    await this.favorites.notifyNewTrip(tripId);
+    return this.detail(tripId, userId);
   }
 
   async detail(tripId: string, userId: string): Promise<TripDetailDto> {
@@ -133,7 +155,11 @@ export class TripsService {
       where: {
         status: 'SCHEDULED',
         arrivalAt: { gt: now },
-        participants: { some: { userId, status: { in: ['REQUESTED', 'ACCEPTED', 'WAITLISTED'] } } },
+        OR: [
+          { participants: { some: { userId, status: { in: ['REQUESTED', 'ACCEPTED', 'WAITLISTED'] } } } },
+          // Membro fisso: compare anche nelle date in cui ha detto "non ci sono".
+          { series: { members: { some: { userId } } } },
+        ],
       },
       include: tripInclude,
       orderBy: { arrivalAt: 'asc' },
@@ -166,58 +192,104 @@ export class TripsService {
       orderBy: { createdAt: 'desc' },
     });
 
+    // Serie ricorrenti: in elenco solo la prossima data (le altre sono nel dettaglio).
+    const seen = new Set<string>();
+    const firstOfSeries = (t: (typeof asDriver)[number], collapse: boolean) => {
+      if (!collapse || !t.series.weekdays.length) return true;
+      if (seen.has(t.seriesId)) return false;
+      seen.add(t.seriesId);
+      return true;
+    };
+    const isMember = (t: (typeof asDriver)[number]) => t.series.members.some((m) => m.userId === userId);
+
     return {
-      asDriver: asDriver.map((t) => this.mapper.summary(t, userId)),
-      asParticipant: asParticipant.map((t) => this.mapper.summary(t, userId)),
+      asDriver: asDriver.filter((t) => firstOfSeries(t, true)).map((t) => this.mapper.summary(t, userId)),
+      asParticipant: asParticipant.filter((t) => firstOfSeries(t, isMember(t))).map((t) => this.mapper.summary(t, userId)),
       awaitingClosure: awaitingClosure.map((t) => this.mapper.summary(t, userId)),
       recent: recent.map((t) => this.mapper.summary(t, userId)),
       pendingRequests: asDriver
         .map((t) => ({ tripId: t.id, count: t.participants.filter((p) => p.status === 'REQUESTED').length }))
         .filter((r) => r.count > 0),
-      pendingInvitations: invitations
-        .filter((i) => i.trip && i.trip.status === 'SCHEDULED' && i.trip.arrivalAt > now)
-        .map((i) => ({
+      pendingInvitations: (await Promise.all(invitations.map((i) => this.invitationTrip(i, now))))
+        .filter((x) => x !== null)
+        .map(({ inv: i, trip }) => ({
           id: i.id,
-          tripId: i.trip!.id,
+          tripId: trip.id,
           scope: i.scope,
           status: i.status,
           invitee: null,
           isLink: false,
           expiresAt: i.expiresAt.toISOString(),
           createdAt: i.createdAt.toISOString(),
-          trip: this.mapper.summary(i.trip!, userId, { invited: true }),
+          trip: this.mapper.summary(trip, userId, { invited: true }),
         })),
     };
   }
 
+  /** Data da mostrare per un invito: quella dell'invito o, per il gruppo fisso, la prossima della serie. */
+  private async invitationTrip<I extends { scope: string; seriesId: string; trip: LoadedTrip | null }>(
+    inv: I,
+    now: Date,
+  ): Promise<{ inv: I; trip: LoadedTrip } | null> {
+    const open = (t: LoadedTrip | null) => t !== null && t.status === 'SCHEDULED' && t.arrivalAt > now;
+    if (open(inv.trip)) return { inv, trip: inv.trip! };
+    if (inv.scope !== 'SERIES') return null;
+    const next = await this.prisma.trip.findFirst({
+      where: { seriesId: inv.seriesId, status: 'SCHEDULED', arrivalAt: { gt: now } },
+      orderBy: { date: 'asc' },
+      include: tripInclude,
+    });
+    return next ? { inv, trip: next } : null;
+  }
+
   /**
    * Solo il conducente cambia la visibilità. Passando a PRIVATO le richieste
-   * esterne in sospeso vengono rifiutate (un viaggio privato non le accetta);
-   * i partecipanti già confermati restano.
+   * esterne in sospeso (e la lista d'attesa esterna) vengono rifiutate: un viaggio
+   * privato non le accetta. I partecipanti confermati e i membri fissi restano.
+   * Serie ricorrente: scope TRIP cambia solo questa data (es. un membro non c'è e
+   * il conducente offre il posto a tutti), scope SERIES tutte le date future.
    */
-  async changeVisibility(tripId: string, userId: string, visibility: TripVisibility): Promise<TripDetailDto> {
+  async changeVisibility(tripId: string, userId: string, visibility: TripVisibility, scope: 'TRIP' | 'SERIES' = 'SERIES'): Promise<TripDetailDto> {
     const ctx = await this.policy.loadVisible(tripId, userId);
     if (!ctx.isDriver) throw Forbidden('Solo il conducente può cambiare la visibilità');
     this.assertOpen(ctx.trip);
+    const series = ctx.trip.series;
+    const onlyThisDate = series.weekdays.length > 0 && scope === 'TRIP';
+    const now = this.clock.now();
+    const members = new Set(series.members.map((m) => m.userId));
 
-    const rejected: string[] = [];
+    const targets = onlyThisDate
+      ? [tripId]
+      : (
+          await this.prisma.trip.findMany({
+            where: { seriesId: series.id, status: 'SCHEDULED', arrivalAt: { gt: now } },
+            select: { id: true },
+          })
+        ).map((t) => t.id);
+
+    const rejected = new Map<string, string[]>();
     await this.prisma.$transaction(async (tx) => {
-      // Viaggio singolo: si aggiorna la serie. (Per le serie ricorrenti, override per data in Fase 3.)
-      await tx.tripSeries.update({ where: { id: ctx.trip.seriesId }, data: { visibility } });
-      await tx.trip.update({ where: { id: tripId }, data: { visibilityOverride: null } });
-      if (visibility === 'PRIVATE') {
-        const pending = ctx.trip.participants.filter((p) => p.status === 'REQUESTED' || p.status === 'WAITLISTED');
-        if (pending.length) {
-          await tx.tripParticipant.updateMany({
-            where: { id: { in: pending.map((p) => p.id) } },
-            data: { status: 'REJECTED', decidedAt: this.clock.now() },
-          });
-          rejected.push(...pending.map((p) => p.userId));
-        }
+      if (onlyThisDate) {
+        await tx.trip.update({ where: { id: tripId }, data: { visibilityOverride: visibility === series.visibility ? null : visibility } });
+      } else {
+        await tx.tripSeries.update({ where: { id: series.id }, data: { visibility } });
+        await tx.trip.updateMany({ where: { id: { in: targets } }, data: { visibilityOverride: null } });
       }
-      await this.stats.syncFact(tripId, tx);
+      for (const id of targets) {
+        if (visibility === 'PRIVATE') {
+          const pending = await tx.tripParticipant.findMany({
+            where: { tripId: id, status: { in: ['REQUESTED', 'WAITLISTED'] }, userId: { notIn: [...members] } },
+            select: { id: true, userId: true },
+          });
+          if (pending.length) {
+            await tx.tripParticipant.updateMany({ where: { id: { in: pending.map((p) => p.id) } }, data: { status: 'REJECTED', decidedAt: now } });
+            rejected.set(id, pending.map((p) => p.userId));
+          }
+        }
+        await this.stats.syncFact(id, tx);
+      }
     });
-    if (rejected.length) await this.notifications.notify(rejected, 'REQUEST_REJECTED', tripId);
+    for (const [id, users] of rejected) await this.notifications.notify(users, 'REQUEST_REJECTED', id);
     if (visibility === 'PUBLIC') await this.favorites.notifyNewTrip(tripId);
     return this.detail(tripId, userId);
   }
@@ -241,7 +313,8 @@ export class TripsService {
         select: { userId: true },
       });
       await tx.trip.update({ where: { id: tripId }, data: { status: 'CANCELLED', cancelledAt: now } });
-      await tx.invitation.updateMany({ where: { tripId, status: 'PENDING' }, data: { status: 'REVOKED', revokedAt: now } });
+      // Gli inviti al gruppo fisso valgono per la serie: restano anche se una data viene annullata.
+      await tx.invitation.updateMany({ where: { tripId, scope: 'TRIP', status: 'PENDING' }, data: { status: 'REVOKED', revokedAt: now } });
       await this.stats.syncFact(tripId, tx);
       return participants.map((p) => p.userId);
     });

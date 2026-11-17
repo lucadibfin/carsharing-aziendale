@@ -48,9 +48,9 @@ L'indirizzo email è **obbligatorio** e serve **solo** per le notifiche dell'app
 ## 5-bis. Notifiche: categorie, canali e basi giuridiche
 | Categoria | Quali | Canali | Base giuridica proposta |
 |---|---|---|---|
-| **Essenziali** | Viaggio annullato; cambio di data o di orario; richiesta di partecipazione accettata o rifiutata; annullamento della tua partecipazione da parte del conducente; invito ricevuto; disattivazione dell'account | Push (se attivata sul dispositivo) **e sempre email**, senza consenso | Esecuzione delle condizioni d'uso (art. 6.1.b) |
+| **Essenziali** | Viaggio annullato o viaggio ricorrente terminato; cambio di data o di orario; posto libero in un viaggio per cui sei in lista d'attesa; uscita dal gruppo fisso decisa dal conducente; richiesta di partecipazione accettata o rifiutata; annullamento della tua partecipazione da parte del conducente; invito ricevuto; disattivazione dell'account | Push (se attivata sul dispositivo) **e sempre email**, senza consenso | Esecuzione delle condizioni d'uso (art. 6.1.b) |
 | **Operative** | Nuova richiesta su un tuo viaggio; un partecipante ha annullato; invito accettato o rifiutato; nuovi messaggi in chat | **Solo push** (se attivata sul dispositivo), mai email | Esecuzione delle condizioni d'uso (art. 6.1.b) |
-| **Facoltative** | Promemoria prima della partenza; nuovi viaggi dei colleghi preferiti; riepiloghi | Push ed email **solo con il tuo consenso**, revocabile dal profilo | Consenso (art. 6.1.a) |
+| **Facoltative** | Promemoria la sera prima e poco prima della partenza; nuovi viaggi dei colleghi preferiti; riepiloghi | Push ed email **solo con il tuo consenso**, revocabile dal profilo | Consenso (art. 6.1.a) |
 
 - **Essenziali.** Riguardano un impegno di viaggio che hai già preso, o lo stato del tuo account. Senza questi avvisi rischieresti di presentarti a un viaggio annullato, o di non sapere se hai un passaggio. Per questo il servizio non funziona senza, e sono comprese nelle condizioni d'uso che accetti volontariamente.
   - L'email è necessaria perché le notifiche push dipendono dal dispositivo: possono non essere attivate, non funzionano su alcuni browser e, su iPhone, solo con l'app installata.
@@ -87,10 +87,11 @@ I dati non sono diffusi, non sono ceduti a terzi per fini commerciali e **non so
 | Verifiche email non completate (indirizzo in attesa di conferma) | Al massimo 24 ore; il codice è conservato solo in forma non reversibile |
 | Messaggi della chat | 30 giorni dall'invio |
 | Segnalazioni di assenza | 12 mesi |
-| Viaggi conclusi (dati identificativi) | [DA COMPILARE, proposta: 12 mesi]; dopo restano solo statistiche anonime |
-| Link d'invito scaduti | Cancellati automaticamente dopo la scadenza |
+| Viaggi conclusi, partecipazioni e gruppi fissi | 12 mesi dalla data del viaggio [DA CONFERMARE]; dopo restano solo statistiche anonime |
+| Inviti scaduti, revocati o già usati | 30 giorni |
+| Sessioni di accesso | Cancellate alla scadenza |
 | Log tecnici | [DA COMPILARE, proposta: 6 mesi] |
-| Registro delle azioni amministrative (audit) | [DA COMPILARE, proposta: 24 mesi]. Contiene solo identificativi tecnici e codici di azione, senza nomi o contenuti |
+| Registro delle azioni amministrative (audit) | 24 mesi [DA CONFERMARE]. Contiene solo identificativi tecnici e codici di azione, senza nomi o contenuti |
 | Accettazioni di informativa e termini | Per la durata dell'account, a prova dell'avvenuta presa visione |
 
 Alla cancellazione dell'account o all'uscita dall'azienda i dati personali sono cancellati, compresi i messaggi inviati in chat e i viaggi proposti. Le segnalazioni che hai inviato restano agli amministratori senza l'indicazione del tuo nome; quelle che ti riguardano sono cancellate. Restano solo statistiche aggregate in forma anonima, non riconducibili all'interessato.
