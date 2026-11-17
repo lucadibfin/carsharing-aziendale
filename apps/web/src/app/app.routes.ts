@@ -20,6 +20,7 @@ export const routes: Routes = [
       { path: 'viaggi/:id', title: 'Viaggio', loadComponent: () => import('./pages/trip-detail.page').then((m) => m.TripDetailPage) },
       { path: 'viaggi/:id/chat', title: 'Chat', loadComponent: () => import('./pages/trip-chat.page').then((m) => m.TripChatPage) },
       { path: 'profilo', title: 'Profilo', loadComponent: () => import('./pages/profile.page').then((m) => m.ProfilePage) },
+      { path: 'profilo/dati', title: 'I miei dati', loadComponent: () => import('./pages/my-data.page').then((m) => m.MyDataPage) },
       { path: 'statistiche', title: 'Le mie statistiche', loadComponent: () => import('./pages/stats.page').then((m) => m.StatsPage) },
       { path: 'invito', title: 'Invito', loadComponent: () => import('./pages/invite.page').then((m) => m.InvitePage) },
       {

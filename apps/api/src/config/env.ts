@@ -93,6 +93,13 @@ export const envSchema = z
         message: 'obbligatorio e deve essere https:// (le credenziali non viaggiano mai in chiaro)',
       });
     }
+    if (env.AUTH_PROVIDER === 'corporate' && env.EMPLOYEE_CHECK_MODE !== 'session-expiry' && !env.CORPORATE_CHECK_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CORPORATE_CHECK_URL'],
+        message: 'obbligatorio con EMPLOYEE_CHECK_MODE=nightly o both (verifica senza password)',
+      });
+    }
     if (env.ROUTING_PROVIDER === 'osrm' && !/^https?:\/\//.test(env.OSRM_URL)) {
       ctx.addIssue({ code: 'custom', path: ['OSRM_URL'], message: 'obbligatorio con ROUTING_PROVIDER=osrm' });
     }

@@ -27,6 +27,7 @@ export const TEST_ENV: Record<string, string> = {
   SMTP_HOST: '',
   MAIL_TRANSPORT: 'disabled',
   ROUTING_PROVIDER: 'estimate',
+  EMPLOYEE_CHECK_MODE: 'session-expiry',
   OSRM_URL: '',
   LOG_LEVEL: 'info',
 };

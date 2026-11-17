@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Patch, Post, Res } from '@nestjs/common';
 import {
   acceptPoliciesSchema,
   type AcceptPoliciesInput,
@@ -13,8 +13,11 @@ import {
   updateProfileSchema,
   type UpdateProfileInput,
 } from '@fcs/shared';
+import type { Response } from 'express';
 import { AllowDuringOnboarding, CurrentUser, Public } from '../auth/decorators.js';
-import type { SessionUser } from '../auth/session.service.js';
+import { SessionService, type SessionUser } from '../auth/session.service.js';
+import { DataExportService } from './data-export.service.js';
+import { UserLifecycleService } from './user-lifecycle.service.js';
 import { PoliciesService } from '../policies/policies.service.js';
 import { EmailVerificationService } from './email-verification.service.js';
 import { UsersService } from './users.service.js';
@@ -25,6 +28,9 @@ export class UsersController {
     private readonly users: UsersService,
     private readonly policies: PoliciesService,
     private readonly email: EmailVerificationService,
+    private readonly exporter: DataExportService,
+    private readonly lifecycle: UserLifecycleService,
+    private readonly sessions: SessionService,
   ) {}
 
   @AllowDuringOnboarding()
@@ -66,6 +72,27 @@ export class UsersController {
   @Patch('profile/consents')
   updateConsents(@CurrentUser() u: SessionUser, @Body({ schema: updateConsentsSchema }) body: UpdateConsentsInput) {
     return this.users.updateConsents(u.userId, body);
+  }
+
+  // ---------- diritti dell'interessato ----------
+
+  /**
+   * Accesso e portabilità (artt. 15 e 20): tutti i propri dati in JSON.
+   * Consentito anche durante il primo accesso: i diritti non dipendono dall'accettazione dei termini.
+   */
+  @AllowDuringOnboarding()
+  @Get('me/data')
+  exportData(@CurrentUser() u: SessionUser) {
+    return this.exporter.export(u.userId);
+  }
+
+  /** Cancellazione dell'account (art. 17): immediata e definitiva. */
+  @AllowDuringOnboarding()
+  @Delete('me')
+  @HttpCode(204)
+  async deleteAccount(@CurrentUser() u: SessionUser, @Res({ passthrough: true }) res: Response): Promise<void> {
+    await this.lifecycle.deleteOwnAccount(u.userId);
+    this.sessions.clearCookie(res);
   }
 
   // ---------- email per le notifiche (consentito anche durante il primo accesso) ----------

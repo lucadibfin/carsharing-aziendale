@@ -25,6 +25,7 @@ import { EmailVerifyComponent } from '../shared/email-verify.component';
       <h1 class="page-title">Profilo</h1>
       <nav class="links" aria-label="Sezioni del profilo">
         <a mat-stroked-button routerLink="/statistiche"><mat-icon svgIcon="eco" />Le mie statistiche</a>
+        <a mat-stroked-button routerLink="/profilo/dati"><mat-icon svgIcon="description" />I miei dati</a>
         @if (isAdmin()) {
           <a mat-stroked-button routerLink="/admin"><mat-icon svgIcon="admin_panel_settings" />Area amministrativa</a>
         }

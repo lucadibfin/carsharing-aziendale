@@ -1,10 +1,12 @@
 import { Global, Module } from '@nestjs/common';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { CorporateIdentityProvider } from './corporate-identity.provider.js';
+import { EmployeeCheckService } from './employee-check.service.js';
 import { IDENTITY_PROVIDER } from './identity-provider.js';
 import { LoginThrottleService } from './login-throttle.service.js';
 import { MockIdentityProvider } from './mock-identity.provider.js';
@@ -17,12 +19,13 @@ import { SessionService } from './session.service.js';
  */
 @Global()
 @Module({
-  imports: [UsersModule],
+  imports: [UsersModule, NotificationsModule],
   controllers: [AuthController],
   providers: [
     SessionService,
     LoginThrottleService,
     AuthService,
+    EmployeeCheckService,
     {
       provide: IDENTITY_PROVIDER,
       inject: [ENV],
