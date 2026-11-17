@@ -4,6 +4,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import pg from 'pg';
+import { applyRecodings, readRecodings } from './comuni-recode.mjs';
 
 try {
   process.loadEnvFile(resolve(import.meta.dirname, '../.env'));
@@ -20,7 +21,8 @@ try {
   // --- Comuni ISTAT ---
   const lines = readFileSync(resolve(import.meta.dirname, 'data/comuni.csv'), 'utf8')
     .trim()
-    .split('\n')
+    .split(/\r?\n/)
+    .filter((l) => !l.startsWith('#')) // righe di commento: fonte e data dell'elenco
     .slice(1);
   const BATCH = 1000;
   for (let i = 0; i < lines.length; i += BATCH) {
@@ -37,6 +39,14 @@ try {
          region = EXCLUDED.region, active = true`,
       params,
     );
+  }
+  // Ricodifiche (stesso comune, codice nuovo): profili, sedi e viaggi passano al
+  // nuovo codice e il vecchio sparisce. Vanno applicate prima della disattivazione.
+  const recoded = await applyRecodings(client, readRecodings(resolve(import.meta.dirname, 'data/comuni-ricodifiche.csv')));
+  if (recoded.length) {
+    const totals = {};
+    for (const r of recoded) for (const [t, n] of Object.entries(r.moved)) totals[t] = (totals[t] ?? 0) + n;
+    console.log(`Ricodifiche applicate: ${recoded.length} comuni; righe aggiornate: ${JSON.stringify(totals)}`);
   }
   // I comuni soppressi/fusi restano per i viaggi storici ma non sono più selezionabili.
   const codes = lines.map((l) => l.split(';')[0]);

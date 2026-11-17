@@ -85,20 +85,27 @@ Il risultato è `apps/api/prisma/data/comuni-coordinate.csv`:
 4. Committare `comuni-coordinate.csv`. Gli altri ambienti lo ricevono con il deploy e il seed.
 
 ### Aggiornamento quando cambia l'elenco dei comuni
-ISTAT pubblica le variazioni (fusioni, nuovi comuni, cambi di provincia o di nome) di norma più volte l'anno; i confini sono aggiornati al 1° gennaio. Una volta l'anno, o quando una variazione riguarda comuni delle sedi:
+ISTAT pubblica variazioni più volte l'anno: fusioni, nuovi comuni, cambi di nome, **cambi di codice per cambio di provincia** (es. la riorganizzazione delle province sarde). I confini sono aggiornati al 1° gennaio. Una volta l'anno, o quando una variazione riguarda comuni delle sedi:
 
-1. Scaricare l'**"Elenco comuni italiani"** (CSV) e i **confini** riferiti **alla stessa data**: se le date differiscono, lo script segnala i comuni non allineati.
-2. Aggiornare l'elenco:
+1. Scaricare l'**"Elenco comuni italiani"** (CSV) e i **confini** riferiti **alla stessa data**, di norma il 1° gennaio.
+   - L'elenco pubblicato sul sito ISTAT è sempre quello aggiornato all'ultima variazione. Per allinearlo ai confini serve la versione al 1° gennaio, che si trova nell'archivio dei "Codici statistici delle unità amministrative territoriali".
+   - Con date diverse, lo script delle coordinate segnala i comuni non allineati.
+2. Aggiornare l'elenco, indicando la data di riferimento:
    ```powershell
-   npm run comuni:istat -w api -- percorso\Elenco-comuni-italiani.csv
+   npm run comuni:istat -w api -- percorso\Elenco-comuni-italiani.csv --al 01/01/2026
    ```
-   Riscrive `apps/api/prisma/data/comuni.csv` e mostra i comuni nuovi, soppressi e rinominati.
-3. Rigenerare le coordinate (passo 2 della prima generazione) e controllare che non ci siano comuni dell'elenco senza confini.
+   - Riscrive `apps/api/prisma/data/comuni.csv`, con data e fonte nella prima riga e la colonna del codice catastale.
+   - Distingue:
+     - **ricodifiche**: stesso comune con codice nuovo. Si riconoscono dallo stesso codice catastale o, se manca, dalla stessa denominazione nella stessa regione, con corrispondenza univoca;
+     - comuni **nuovi**, **soppressi o fusi**, **rinominati**;
+     - casi **ambigui**, segnalati e da verificare a mano.
+   - Le ricodifiche vengono aggiunte a `apps/api/prisma/data/comuni-ricodifiche.csv`, un registro storico che non va mai riscritto da zero.
+3. Rigenerare le coordinate (passo 2 della prima generazione) e controllare che **nessun comune dell'elenco resti senza confini**. Ogni eccezione va spiegata, ad esempio con un comune nato dopo la data dei confini.
 4. `npm run db:seed -w api`:
-   - i comuni nuovi diventano selezionabili;
-   - quelli soppressi restano nel database come **non selezionabili**, perché li usano viaggi e profili esistenti;
-   - i nomi vengono aggiornati.
-5. Committare i due CSV. Gli utenti che risiedono in un comune soppresso lo vedono ancora nel profilo e possono scegliere quello nuovo.
+   - **ricodifiche**: profili, sedi, tappe dei viaggi e comuni di salita passano al nuovo codice e il vecchio codice viene eliminato. Nessun dato resta orfano: se il nuovo codice manca dall'elenco, il seed si ferma;
+   - i comuni nuovi diventano selezionabili e i nomi vengono aggiornati;
+   - i comuni **soppressi o fusi** restano nel database come **non selezionabili**, perché li usano viaggi e profili esistenti. L'utente vede ancora il vecchio comune nel profilo e può scegliere quello nuovo.
+5. Committare insieme `comuni.csv`, `comuni-ricodifiche.csv` e `comuni-coordinate.csv`.
 
 **Altri file.** Per coordinate da altre fonti resta `npm run db:import-coords -w api -- file.csv` (formato `istat;lat;lon`), che però non aggiorna il CSV versionato.
 

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { parsePrj } from '../scripts/istat/boundaries.mjs';
-import { diffLists, parseElenco } from '../scripts/istat/comuni-elenco.mjs';
+import { type ComuneRow, diffLists, listToCsv, mergeRecodings, parseElenco } from '../scripts/istat/comuni-elenco.mjs';
 import { compareWithList, computePoints, toCsv, vintageFromName } from '../scripts/istat/comuni-punti.mjs';
 import { isInside, latLonToUtm, pointOnSurface, utmToLatLon } from '../scripts/istat/geo.mjs';
 
@@ -14,6 +14,14 @@ const UTM32_PRJ =
   'PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]';
 
 type Ring = number[][];
+
+const row = (istat: string, name: string, province: string, region: string, catastale = ''): ComuneRow => ({
+  istat,
+  name,
+  province,
+  region,
+  catastale,
+});
 
 /** Scrive uno shapefile minimale di poligoni (.shp, .dbf, .prj) come quelli ISTAT. */
 function writeShapefile(base: string, features: { code: string; rings: Ring[] }[], prj = UTM32_PRJ): void {
@@ -240,13 +248,85 @@ describe('Coordinate dei comuni dai confini ISTAT', () => {
       const buf = Buffer.from([header, ...rows].join('\r\n') + '\r\n', 'latin1');
       const parsed = parseElenco(buf);
       expect(parsed).toEqual([
-        { istat: '001001', name: 'Agliè', province: 'TO', region: 'Piemonte' },
-        { istat: '021008', name: 'Bolzano', province: 'BZ', region: 'Trentino-Alto Adige/Südtirol' },
+        { istat: '001001', name: 'Agliè', province: 'TO', region: 'Piemonte', catastale: '' },
+        { istat: '021008', name: 'Bolzano', province: 'BZ', region: 'Trentino-Alto Adige/Südtirol', catastale: '' },
       ]);
-      const d = diffLists([{ istat: '001001', name: 'Aglie', province: 'TO', region: 'Piemonte' }, { istat: '099999', name: 'Soppresso', province: 'XX', region: 'X' }], parsed);
+      const d = diffLists([row('001001', 'Aglie', 'TO', 'Piemonte'), row('099999', 'Soppresso', 'XX', 'X')], parsed);
       expect(d.added.map((r) => r.istat)).toEqual(['021008']);
       expect(d.removed.map((r) => r.istat)).toEqual(['099999']);
       expect(d.renamed.map((r) => r.istat)).toEqual(['001001']);
+      expect(d.recoded).toEqual([]);
+    });
+
+    it('legge il codice catastale e scrive l’elenco con la data di riferimento', () => {
+      const buf = Buffer.from(
+        'Codice Comune formato alfanumerico;Denominazione in italiano;Denominazione Regione;Sigla automobilistica;Codice Catastale del comune\n' +
+          '112003;Alghero;Sardegna;SS;A192\n',
+        'utf8',
+      );
+      const rows = parseElenco(buf);
+      expect(rows[0]!.catastale).toBe('A192');
+      expect(listToCsv(rows, '01/01/2026')).toBe(
+        '# Fonte: ISTAT - Elenco comuni italiani al 01/01/2026. Licenza CC BY 4.0.\n' +
+          'istat;name;province;region;catastale\n' +
+          '112003;Alghero;SS;Sardegna;A192\n',
+      );
+    });
+
+    describe('ricodifiche (stesso comune, codice nuovo)', () => {
+      // Riorganizzazione delle province sarde: stessi comuni, codici e sigle nuovi.
+      const before = [
+        row('090003', 'Alghero', 'SS', 'Sardegna'),
+        row('090064', 'Sassari', 'SS', 'Sardegna'),
+        row('111001', 'Arbus', 'SU', 'Sardegna'),
+        row('090999', 'Comune soppresso', 'SS', 'Sardegna'),
+        row('083075', 'San Teodoro', 'ME', 'Sicilia'),
+        row('090092', 'San Teodoro', 'SS', 'Sardegna'),
+      ];
+      const after = [
+        row('112003', 'Alghero', 'SS', 'Sardegna', 'A192'),
+        row('112060', 'Sassari', 'SS', 'Sardegna', 'I452'),
+        row('118001', 'Arbus', 'VS', 'Sardegna', 'A359'),
+        row('113050', 'Nuovo comune da fusione', 'SS', 'Sardegna', 'M999'),
+        row('083075', 'San Teodoro', 'ME', 'Sicilia', 'I328'),
+        row('119020', 'San Teodoro', 'OT', 'Sardegna', 'I329'),
+      ];
+
+      it('stessa denominazione nella stessa regione: ricodifica, non soppressione + nascita', () => {
+        const d = diffLists(before, after);
+        expect(d.recoded.map((r) => `${r.from.istat}→${r.to.istat}`).sort()).toEqual([
+          '090003→112003',
+          '090064→112060',
+          '090092→119020', // il San Teodoro sardo, non quello siciliano
+          '111001→118001',
+        ]);
+        expect(d.removed.map((r) => r.istat)).toEqual(['090999']);
+        expect(d.added.map((r) => r.istat)).toEqual(['113050']);
+        expect(d.ambiguous).toEqual([]);
+      });
+
+      it('con il codice catastale in entrambi gli elenchi vale quello (anche se cambia il nome)', () => {
+        const d = diffLists([row('112003', 'Alghero', 'SS', 'Sardegna', 'A192')], [row('120003', 'Alghero/L’Alguer', 'SS', 'Sardegna', 'A192')]);
+        expect(d.recoded.map((r) => `${r.from.istat}→${r.to.istat}`)).toEqual(['112003→120003']);
+      });
+
+      it('omonimi nella stessa regione: nessuna ricodifica automatica, segnalati', () => {
+        const d = diffLists(
+          [row('001001', 'Doppio', 'TO', 'Piemonte'), row('001002', 'Doppio', 'TO', 'Piemonte')],
+          [row('201001', 'Doppio', 'XX', 'Piemonte')],
+        );
+        expect(d.recoded).toEqual([]);
+        expect(d.ambiguous).toHaveLength(1);
+      });
+
+      it('il registro conserva lo storico e non duplica', () => {
+        const d = diffLists(before, after);
+        const first = mergeRecodings('', d.recoded, '01/01/2026');
+        expect(first.split('\n').filter((l) => /^\d/.test(l))).toHaveLength(4);
+        expect(first).toContain('090003;112003;Alghero;01/01/2026');
+        const again = mergeRecodings(first, d.recoded, '01/01/2026');
+        expect(again).toBe(first);
+      });
     });
   });
 });

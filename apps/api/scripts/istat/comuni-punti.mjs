@@ -61,6 +61,7 @@ export function compareWithList(points, listPath = resolve(dataDir, 'comuni.csv'
   const list = readFileSync(listPath, 'utf8')
     .trim()
     .split(/\r?\n/)
+    .filter((l) => !l.startsWith('#'))
     .slice(1)
     .map((l) => l.split(';')[0]);
   const have = new Set(points.map((p) => p.code));
@@ -87,6 +88,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (missing.length) {
     console.warn(`Comuni dell'elenco senza confini (${missing.length}): ${missing.slice(0, 20).join(', ')}${missing.length > 20 ? '…' : ''}`);
     console.warn('→ elenco e confini devono riferirsi alla stessa data (vedi docs/distanze.md).');
+    if (extra.length) {
+      console.warn('→ ci sono anche codici sconosciuti: probabili ricodifiche. Aggiornare l\'elenco con npm run comuni:istat -w api -- <elenco> --al <data dei confini>.');
+    }
   }
   if (extra.length) console.warn(`Codici nei confini ma non nell'elenco (${extra.length}): ${extra.slice(0, 20).join(', ')}${extra.length > 20 ? '…' : ''}`);
   console.log('Per caricarli nel database: npm run db:seed -w api');
