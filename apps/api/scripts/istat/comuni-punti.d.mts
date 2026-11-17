@@ -11,6 +11,11 @@ export function derivePoints(
   variations: Variation[],
   missingCodes: string[],
 ): { derived: (ComunePoint & { variation: Variation })[]; unresolved: { code: string; reason: string }[] };
+export function incorporationPoints(
+  computed: { crs: Crs; ringsByCode: Map<string, number[][][]> },
+  variations: Variation[],
+): { overrides: (ComunePoint & { variation: Variation })[]; unresolved: { code: string; reason: string }[] };
+export function neighbours(computed: { crs: Crs; ringsByCode: Map<string, number[][][]> }, code: string): string[];
 export function vintageFromName(name: string): string | null;
 export function toCsv(points: ComunePoint[], sourceName: string, derived?: (ComunePoint & { variation: Variation })[]): string;
 export function compareWithList(points: ComunePoint[], listPath?: string): { missing: string[]; extra: string[] };

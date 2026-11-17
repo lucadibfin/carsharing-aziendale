@@ -17,24 +17,42 @@ function runSeed(dataDir?: string): string {
   });
 }
 
+/** Comuni dell'elenco "vecchio" (prima dell'aggiornamento), qualunque sia l'elenco attuale del progetto. */
+const OLD_COMUNI = [
+  { istat: '090003', name: 'Alghero', province: 'SS', region: 'Sardegna' },
+  { istat: '024027', name: 'Castegnero', province: 'VI', region: 'Veneto' },
+  { istat: '024071', name: 'Nanto', province: 'VI', region: 'Veneto' },
+  { istat: '018082', name: 'Lirio', province: 'PV', region: 'Lombardia' },
+  { istat: '018094', name: 'Montalto Pavese', province: 'PV', region: 'Lombardia' },
+];
+/** Codici dello scenario: tolti dall'elenco del progetto e riscritti nei dati di prova. */
+const SCENARIO_CODES = ['090003', '024027', '024071', '018082', '018094', '112001', '024129'];
+
 /**
- * Situazione reale di novembre 2026: l'elenco del progetto ha i vecchi codici sardi;
+ * Situazione reale di novembre 2026: l'elenco precedente ha i vecchi codici sardi;
  * il nuovo elenco (SITUAS) ha i codici nuovi, la fusione Castegnero + Nanto →
- * Castegnero Nanto e non ha più Lirio (incorporato).
+ * Castegnero Nanto e non ha più Lirio, incorporato in Montalto Pavese.
  */
 describe('Seed: aggiornamento dell’elenco dei comuni', () => {
   let ctx: TestContext;
   let dir: string;
   let seedOutput: string;
   let tripId: string;
+  let lirioTripId: string;
   let lauraId: string;
+  let annaId: string;
+  let anna: Awaited<ReturnType<typeof onboardedUser>>;
   let mario: Awaited<ReturnType<typeof onboardedUser>>;
 
   beforeAll(async () => {
     ctx = await createTestApp();
     await resetDb(ctx.prisma);
+    for (const c of OLD_COMUNI) {
+      await ctx.prisma.comune.upsert({ where: { istat: c.istat }, create: { ...c, active: true }, update: { ...c, active: true } });
+    }
     // Prima dell'aggiornamento: Laura risiede ad Alghero (vecchio codice sardo), Mario ha un
-    // viaggio che parte da Castegnero (poi fuso) con salita a Nanto.
+    // viaggio che parte da Castegnero (poi fuso) con salita a Nanto, Anna risiede a Lirio
+    // (poi incorporato) e ha un viaggio che parte da lì.
     mario = await onboardedUser(ctx, 'mario.rossi');
     const laura = await onboardedUser(ctx, 'laura.bianchi');
     lauraId = laura.userId;
@@ -42,29 +60,54 @@ describe('Seed: aggiornamento dell’elenco dei comuni', () => {
     const trip = await createTrip(ctx, mario, { departureComune: '024027', viaComuni: ['024071', COMUNI.MONZA] });
     tripId = trip.id;
     expect((await laura.post(`/trips/${trip.id}/requests`, { boardingComune: '024071' })).status).toBe(201);
+    anna = await onboardedUser(ctx, 'anna.neri');
+    annaId = anna.userId;
+    await anna.patch('/profile', { comuneIstat: '018082' });
+    lirioTripId = (await createTrip(ctx, anna, { departureComune: '018082', viaComuni: [COMUNI.MONZA] })).id;
 
-    // Nuovi dati di riferimento, ricavati dall'elenco attuale del progetto.
+    // Nuovi dati di riferimento: elenco del progetto senza i codici dello scenario, più i comuni nuovi.
     dir = mkdtempSync(join(tmpdir(), 'fcs-seed-'));
+    const codes = new RegExp(`^(${SCENARIO_CODES.join('|')});`);
     const current = readFileSync(resolve(apiDir, 'prisma/data/comuni.csv'), 'utf8')
       .trim()
       .split(/\r?\n/)
       .filter((l) => !l.startsWith('#'))
       .slice(1)
-      .filter((l) => !/^(090003|024027|024071|018082);/.test(l));
+      .filter((l) => !codes.test(l));
     writeFileSync(
       join(dir, 'comuni.csv'),
-      ['# Fonte: ISTAT - SITUAS, elenco dei comuni al 17/11/2026. Licenza CC BY 4.0.', 'istat;name;province;region;catastale', ...current, '112001;Alghero;SS;Sardegna;A192', '024129;Castegnero Nanto;VI;Veneto;M439', ''].join('\n'),
+      [
+        '# Fonte: ISTAT - SITUAS, elenco dei comuni al 17/11/2026. Licenza CC BY 4.0.',
+        'istat;name;province;region;catastale',
+        ...current,
+        '112001;Alghero;SS;Sardegna;A192',
+        '024129;Castegnero Nanto;VI;Veneto;M439',
+        '018094;Montalto Pavese;PV;Lombardia;F417',
+        '',
+      ].join('\n'),
     );
     writeFileSync(join(dir, 'comuni-ricodifiche.csv'), 'vecchio;nuovo;nome;dal\n090003;112001;Alghero;17/11/2026\n');
-    writeFileSync(join(dir, 'comuni-coordinate.csv'), '# Fonte: ISTAT\nistat;lat;lon\n112001;40.558;8.319\n024129;45.4367;11.5904\n024027;45.437;11.6\n');
+    writeFileSync(
+      join(dir, 'comuni-variazioni.csv'),
+      [
+        'codice;nome;tipo;origini;rilevato_al;nota',
+        '024129;Castegnero Nanto;FUSIONE;024027+024071;17/11/2026;fusione di Castegnero e Nanto',
+        '018094;Montalto Pavese;INCORPORAZIONE;018082+018094;17/11/2026;incorporazione di Lirio',
+        '',
+      ].join('\n'),
+    );
+    writeFileSync(
+      join(dir, 'comuni-coordinate.csv'),
+      '# Fonte: ISTAT\nistat;lat;lon\n112001;40.558;8.319\n024129;45.4367;11.5904\n024027;45.437;11.6\n018082;44.98;9.2\n018094;44.975;9.215\n',
+    );
     seedOutput = runSeed(dir);
   });
 
   afterAll(async () => {
     // Ripristino dei dati di riferimento del progetto per gli altri test.
     await resetDb(ctx.prisma);
+    await ctx.prisma.comune.deleteMany({ where: { istat: { in: SCENARIO_CODES } } });
     runSeed();
-    await ctx.prisma.comune.deleteMany({ where: { istat: { in: ['112001', '024129'] } } });
     rmSync(dir, { recursive: true, force: true });
     await ctx.app.close();
   });
@@ -85,13 +128,20 @@ describe('Seed: aggiornamento dell’elenco dei comuni', () => {
     expect(trip.stops.map((s) => s.comuneName)).toEqual(['Castegnero', 'Nanto', 'Monza']);
   });
 
-  it('incorporazione (Lirio): il comune resta nel DB ma non è più selezionabile', async () => {
-    expect(await ctx.prisma.comune.findUniqueOrThrow({ where: { istat: '018082' } })).toMatchObject({ active: false });
+  it('incorporazione (Lirio → Montalto Pavese): profilo e viaggio spostati; Lirio resta, non selezionabile', async () => {
+    expect(seedOutput).toMatch(/Incorporazione applicata: 018082 → 018094 Montalto Pavese; righe aggiornate: \{"User":1,"TripStop":1\}/);
+    expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id: annaId } })).comuneIstat).toBe('018094');
+    const trip = (await anna.get(`/trips/${lirioTripId}`)).body as TripDetailDto;
+    expect(trip.stops.map((s) => s.comuneName)).toEqual(['Montalto Pavese', 'Monza']);
+    expect(await ctx.prisma.comune.findUniqueOrThrow({ where: { istat: '018082' } })).toMatchObject({ active: false, lat: 44.98 });
+    expect(await ctx.prisma.comune.findUniqueOrThrow({ where: { istat: '018094' } })).toMatchObject({ active: true, lat: 44.975 });
+    expect((await mario.get('/comuni').query({ q: 'Lirio' })).body as ComuneDto[]).toEqual([]);
   });
 
   it('il seed rilanciato con gli stessi dati non cambia nulla', () => {
     const again = runSeed(dir);
     expect(again).not.toContain('Ricodifiche applicate');
+    expect(again).not.toContain('Incorporazione applicata');
     expect(again).toMatch(/0 aggiornati; comuni attivi senza coordinate: \d+/);
   });
 });

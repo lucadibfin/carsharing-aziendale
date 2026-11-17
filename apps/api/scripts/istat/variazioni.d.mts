@@ -10,4 +10,5 @@ export const VARIATIONS_PATH: string;
 export const VARIATION_TYPES: string[];
 export function parseVariations(text: string): Variation[];
 export function readVariations(path?: string): Variation[];
+export function incorporatedCodes(variations: Variation[]): Map<string, Variation>;
 export function mergeVariations(existingText: string, entries: Variation[]): string;

@@ -96,16 +96,21 @@ I comuni cambiati nel frattempo sono gestiti così:
 | **Ricodifica** (stesso comune, codice nuovo) | Comuni sardi dopo la riorganizzazione delle province | Riconosciuta da `comuni:istat` (stesso codice catastale o stessa denominazione nella stessa regione) e registrata in `comuni-ricodifiche.csv`. Il seed sposta profili, sedi, tappe e comuni di salita sul nuovo codice ed elimina il vecchio |
 | **Fusione** dopo la data dei confini | Castegnero + Nanto → Castegnero Nanto (2026) | Registrata in `comuni-variazioni.csv` (tipo `FUSIONE`) con i codici d'origine. `comuni:istat` la riconosce da solo quando il nome nuovo è composto dai nomi dei comuni spariti della stessa provincia; altrimenti la segnala con i possibili comuni d'origine. `coords:istat` calcola il **punto interno all'unione dei territori d'origine** presenti nei confini |
 | **Distacco** di territorio (comune nuovo ricavato da uno esistente) | — | `coords:istat` lo segnala come "senza coordinate" con una proposta. Si aggiunge a mano una riga `APPROSSIMATO` con il comune d'origine: le coordinate sono quelle del comune d'origine, una stima da sostituire quando i confini dell'anno dopo includeranno il comune nuovo |
-| **Incorporazione** in un comune esistente | Lirio (PV), sparito nel 2026 | Il comune che incorpora mantiene il suo codice e il suo punto, che resta dentro il territorio allargato. Il comune incorporato resta nel database come **non selezionabile**, con le sue coordinate, per i viaggi e i profili esistenti |
+| **Incorporazione** (fusione per incorporazione) in un comune esistente | Lirio → Montalto Pavese (L.R. Lombardia n. 1 del 28/01/2026, dal 31/01/2026) | L'incorporante mantiene nome e codice. L'elenco vigente non dice quale sia: `comuni:istat` segnala il comune soppresso come **"INCORPORANTE DA INDICARE"** e `coords:istat` propone i comuni confinanti. Si indica con `--incorporazione <soppresso>=<incorporante>` e viene registrata in `comuni-variazioni.csv` (tipo `INCORPORAZIONE`). Coordinate dell'incorporante: **punto interno all'unione dei territori** finché i confini contengono ancora l'incorporato. Il seed sposta profili, sedi, tappe e comuni di salita sull'incorporante, come per le ricodifiche |
 | **Cambio di nome** | Vallecrosia → Vallecrosia al mare | Il seed aggiorna il nome |
 
-I comuni d'origine di fusioni e incorporazioni restano nel database come non selezionabili, con le loro coordinate. Profili e viaggi che li usano restano validi; l'utente può scegliere il nuovo comune dal profilo.
+Che cosa resta nel database:
+- **ricodifiche**: il vecchio codice viene eliminato, dopo aver spostato tutti i riferimenti;
+- **incorporazioni**: il comune incorporato resta come **soppresso e non selezionabile**, con le sue coordinate, ma nessun profilo, sede o viaggio lo usa più;
+- **fusioni**: i comuni d'origine restano come non selezionabili, con le loro coordinate; profili e viaggi che li usano restano validi e l'utente può scegliere il nuovo comune dal profilo.
 
 Formato di `comuni-variazioni.csv` (le righe si possono correggere a mano: gli script non le riscrivono):
 ```
 codice;nome;tipo;origini;rilevato_al;nota
 024129;Castegnero Nanto;FUSIONE;024027+024071;17/11/2026;fusione di Castegnero e Nanto
+018094;Montalto Pavese;INCORPORAZIONE;018082+018094;17/11/2026;incorporazione di Lirio
 ```
+Per `INCORPORAZIONE` il codice è quello dell'incorporante e le origini comprendono l'incorporante stesso più gli incorporati. Se lo stesso comune ne incorpora altri in seguito, gli incorporati si aggiungono alla stessa riga.
 
 ### Aggiornamento dell'elenco (procedura)
 Una volta l'anno quando escono i nuovi confini, oppure quando una variazione riguarda i comuni delle sedi:
@@ -118,14 +123,16 @@ Una volta l'anno quando escono i nuovi confini, oppure quando una variazione rig
    ```bash
    npm run comuni:istat -w api -- percorso/situas.csv --al GG/MM/AAAA --dry-run
    ```
-4. Aggiornamento dell'elenco (stesso comando senza `--dry-run`). Riscrive `comuni.csv` e aggiunge ricodifiche e fusioni riconosciute ai due registri.
+   - Se compare un comune **"INCORPORANTE DA INDICARE"**, cercare su SITUAS (variazioni amministrative) o nella legge regionale in quale comune è confluito.
+4. Aggiornamento dell'elenco (stesso comando senza `--dry-run`, più un `--incorporazione <soppresso>=<incorporante>` per ogni incorporazione segnalata). Riscrive `comuni.csv` e aggiunge ricodifiche, fusioni riconosciute e incorporazioni ai registri. L'incorporazione si può indicare anche dopo, rilanciando il comando: il registro non duplica le righe.
 5. Coordinate: `npm run coords:istat -w api -- percorso/ComGGMMAAAA_g_WGS84.shp`.
    - Deve chiudersi con **"Comuni dell'elenco senza coordinate: 0"**.
    - Se resta qualche comune, lo script lo elenca con una proposta. Si completa `comuni-variazioni.csv` e si ripete.
-6. `npm run db:seed`, che applica ricodifiche, nuovi comuni, nomi e coordinate.
+   - Se un codice dei confini non è nell'elenco e non è registrato, lo script elenca i comuni confinanti come possibili incorporanti.
+6. `npm run db:seed`, che applica ricodifiche, incorporazioni, nuovi comuni, nomi e coordinate.
 7. Committare insieme `comuni.csv`, `comuni-ricodifiche.csv`, `comuni-variazioni.csv` e `comuni-coordinate.csv`.
 
-Quando escono i confini dell'anno successivo, i comuni nati da fusione o distacco vi compaiono con il proprio poligono. `coords:istat` usa allora direttamente quello e le righe di `comuni-variazioni.csv` non servono più per quei comuni. Possono restare come storico.
+Quando escono i confini dell'anno successivo, i comuni nati da fusione o distacco vi compaiono con il proprio poligono, e il poligono degli incorporanti comprende già il territorio incorporato. `coords:istat` usa allora direttamente quelli e le righe di `comuni-variazioni.csv` non servono più per quei comuni. Possono restare come storico; per le incorporazioni restano utili al seed, che sposta sull'incorporante eventuali riferimenti rimasti al comune soppresso.
 
 **Altri file.** Per coordinate da altre fonti resta `npm run db:import-coords -w api -- file.csv` (formato `istat;lat;lon`), che però non aggiorna il CSV versionato.
 

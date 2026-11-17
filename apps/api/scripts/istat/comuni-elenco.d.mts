@@ -27,4 +27,19 @@ export function detectFusions(
   added: ComuneRow[],
   removed: ComuneRow[],
 ): { fusions: { comune: ComuneRow; origins: ComuneRow[] }[]; unresolved: { comune: ComuneRow; candidates: ComuneRow[] }[] };
+export interface Incorporation {
+  comune: ComuneRow;
+  into: ComuneRow;
+  registered: boolean;
+}
+export function parseIncorporationArgs(args: string[]): { from: string; to: string }[];
+export function classifyIncorporations(
+  removed: ComuneRow[],
+  before: ComuneRow[],
+  after: ComuneRow[],
+  added: ComuneRow[],
+  variations: import('./variazioni.mjs').Variation[],
+  requested: { from: string; to: string }[],
+): { incorporations: Incorporation[]; pending: ComuneRow[]; errors: string[] };
+export function incorporationEntries(incorporations: Incorporation[], refDate: string): import('./variazioni.mjs').Variation[];
 export function mergeRecodings(existingText: string, recoded: Recoding[], refDate: string): string;

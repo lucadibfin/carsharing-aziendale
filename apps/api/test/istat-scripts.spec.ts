@@ -4,15 +4,26 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { parsePrj } from '../scripts/istat/boundaries.mjs';
 import {
+  classifyIncorporations,
   type ComuneRow,
   detectFusions,
   diffLists,
+  incorporationEntries,
   listToCsv,
   mergeRecodings,
   parseElenco,
+  parseIncorporationArgs,
   sourceName,
 } from '../scripts/istat/comuni-elenco.mjs';
-import { compareWithList, computePoints, derivePoints, toCsv, vintageFromName } from '../scripts/istat/comuni-punti.mjs';
+import {
+  compareWithList,
+  computePoints,
+  derivePoints,
+  incorporationPoints,
+  neighbours,
+  toCsv,
+  vintageFromName,
+} from '../scripts/istat/comuni-punti.mjs';
 import { isInside, latLonToUtm, pointOnSurface, pointOnSurfaceOfUnion, utmToLatLon } from '../scripts/istat/geo.mjs';
 import { mergeVariations, parseVariations } from '../scripts/istat/variazioni.mjs';
 
@@ -360,6 +371,82 @@ describe('Coordinate dei comuni dai confini ISTAT', () => {
         const csv = toCsv(computed.points, shp + '.shp', derived);
         expect(csv).toContain('# 024129 Castegnero Nanto: punto interno all\'unione dei territori di 024027+024071');
         expect(csv).toMatch(/\n024129;45\.\d{6};11\.\d{6}\n/);
+      });
+    });
+
+    describe('incorporazioni (comune soppresso confluito in un comune esistente)', () => {
+      const before = [row('018082', 'Lirio', 'PV', 'Lombardia'), row('018094', 'Montalto Pavese', 'PV', 'Lombardia'), row('018001', 'Alagna', 'PV', 'Lombardia')];
+      const after = [row('018094', 'Montalto Pavese', 'PV', 'Lombardia', 'F417'), row('018001', 'Alagna', 'PV', 'Lombardia', 'A118')];
+      const removed = [before[0]!];
+
+      it('senza indicazioni il comune resta da classificare: va chiesto l’incorporante', () => {
+        const r = classifyIncorporations(removed, before, after, [], [], []);
+        expect(r.pending.map((p) => p.istat)).toEqual(['018082']);
+        expect(r.incorporations).toEqual([]);
+      });
+
+      it('con --incorporazione viene registrato come INCORPORAZIONE dell’incorporante', () => {
+        const requested = parseIncorporationArgs(['situas.csv', '--al', '17/11/2026', '--incorporazione', '018082=018094']);
+        const r = classifyIncorporations(removed, before, after, [], [], requested);
+        expect(r.pending).toEqual([]);
+        expect(incorporationEntries(r.incorporations, '17/11/2026')).toEqual([
+          { code: '018094', name: 'Montalto Pavese', type: 'INCORPORAZIONE', origins: ['018082', '018094'], detectedAt: '17/11/2026', note: 'incorporazione di Lirio' },
+        ]);
+        // Indicato dopo aver già aggiornato l'elenco: il comune non è più tra i soppressi, ma si registra lo stesso.
+        const later = classifyIncorporations([], after, after, [], [], requested);
+        expect(later.incorporations.map((i) => `${i.comune.istat}→${i.into.istat}`)).toEqual(['018082→018094']);
+      });
+
+      it('già nel registro: riconosciuto senza ripetere l’indicazione', () => {
+        const registered = parseVariations('018094;Montalto Pavese;INCORPORAZIONE;018082+018094;17/11/2026;incorporazione di Lirio\n');
+        const r = classifyIncorporations(removed, before, after, [], registered, []);
+        expect(r.incorporations.map((i) => [i.comune.istat, i.into.istat, i.registered])).toEqual([['018082', '018094', true]]);
+        expect(incorporationEntries(r.incorporations, '17/11/2026')).toEqual([]);
+      });
+
+      it('indicazioni incoerenti rifiutate', () => {
+        const added = [row('018200', 'Comune Nuovo', 'PV', 'Lombardia')];
+        const now = [...after, ...added];
+        const errors = (pairs: string) => classifyIncorporations(removed, before, now, added, [], parseIncorporationArgs(['--incorporazione', pairs])).errors;
+        expect(errors('018094=018001')[0]).toMatch(/ancora nell'elenco/);
+        expect(errors('018082=018999')[0]).toMatch(/non è nell'elenco/);
+        expect(errors('018082=018200')[0]).toMatch(/FUSIONE/);
+        expect(() => parseIncorporationArgs(['--incorporazione', '18082-18094'])).toThrow(/formato/);
+      });
+
+      it('registro: l’incorporante è tra le origini; più incorporazioni nello stesso comune restano su una riga', () => {
+        expect(() => parseVariations('018094;Montalto Pavese;INCORPORAZIONE;018082;;\n')).toThrow(/non valida/);
+        const first = mergeVariations('', [{ code: '018094', name: 'Montalto Pavese', type: 'INCORPORAZIONE', origins: ['018082', '018094'], detectedAt: '17/11/2026', note: 'incorporazione di Lirio' }]);
+        const second = mergeVariations(first, [{ code: '018094', name: 'Montalto Pavese', type: 'INCORPORAZIONE', origins: ['018094', '018150'], detectedAt: '01/03/2027', note: 'incorporazione di Altro' }]);
+        expect(parseVariations(second)).toEqual([
+          { code: '018094', name: 'Montalto Pavese', type: 'INCORPORAZIONE', origins: ['018082', '018094', '018150'], detectedAt: '17/11/2026', note: 'incorporazione di Lirio, incorporazione di Altro' },
+        ]);
+      });
+
+      it('coordinate dell’incorporante sull’unione dei territori finché i confini hanno ancora l’incorporato; proposta dei confinanti', () => {
+        const base = latLonToUtm(44.97, 9.2, 32);
+        const shp = join(dir, 'Com01012026_incorporazione');
+        const features = [
+          { code: '018094', rings: [square(base.easting, base.northing, 4000)] },
+          { code: '018082', rings: [square(base.easting + 4000, base.northing, 1500)] }, // confina a est
+          { code: '018001', rings: [square(base.easting + 20000, base.northing, 3000)] }, // lontano
+        ];
+        writeShapefile(shp, features);
+        const computed = computePoints(shp + '.shp');
+        const variations = parseVariations('018094;Montalto Pavese;INCORPORAZIONE;018082+018094;17/11/2026;incorporazione di Lirio\n');
+        const { overrides, unresolved } = incorporationPoints(computed, variations);
+        expect(unresolved).toEqual([]);
+        expect(overrides.map((o) => o.code)).toEqual(['018094']);
+        const own = computed.points.find((p) => p.code === '018094')!;
+        // Il punto si sposta verso est, nel territorio allargato.
+        expect(overrides[0]!.lon).toBeGreaterThan(own.lon);
+        expect(toCsv(computed.points, shp + '.shp', overrides)).toContain('# 018094 Montalto Pavese: punto interno all\'unione dei territori di 018082+018094, incorporazione');
+        expect(neighbours(computed, '018082')).toEqual(['018094']);
+
+        // Confini successivi, senza Lirio: vale il poligono di Montalto Pavese.
+        const shp2 = join(dir, 'Com01012027_incorporazione');
+        writeShapefile(shp2, features.filter((f) => f.code !== '018082'));
+        expect(incorporationPoints(computePoints(shp2 + '.shp'), variations).overrides).toEqual([]);
       });
     });
 

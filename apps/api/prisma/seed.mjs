@@ -4,7 +4,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import pg from 'pg';
-import { applyRecodings, readRecodings } from './comuni-recode.mjs';
+import { readVariations } from '../scripts/istat/variazioni.mjs';
+import { applyIncorporations, applyRecodings, readRecodings } from './comuni-recode.mjs';
 
 try {
   process.loadEnvFile(resolve(import.meta.dirname, '../.env'));
@@ -50,6 +51,11 @@ try {
     const totals = {};
     for (const r of recoded) for (const [t, n] of Object.entries(r.moved)) totals[t] = (totals[t] ?? 0) + n;
     console.log(`Ricodifiche applicate: ${recoded.length} comuni; righe aggiornate: ${JSON.stringify(totals)}`);
+  }
+  // Incorporazioni: come sopra, ma il comune incorporato resta (non selezionabile).
+  const incorporated = await applyIncorporations(client, readVariations(resolve(DATA_DIR, 'comuni-variazioni.csv')));
+  for (const i of incorporated) {
+    console.log(`Incorporazione applicata: ${i.from} → ${i.to} ${i.name}; righe aggiornate: ${JSON.stringify(i.moved)}`);
   }
   // I comuni soppressi/fusi restano per i viaggi storici ma non sono più selezionabili.
   const codes = lines.map((l) => l.split(';')[0]);

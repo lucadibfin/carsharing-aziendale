@@ -9,7 +9,9 @@
 //
 // Elenco dei comuni e confini possono avere date diverse (l'elenco può essere più
 // recente): i comuni nati dopo la data dei confini sono descritti in
-// prisma/data/comuni-variazioni.csv (fusioni: unione dei territori d'origine).
+// prisma/data/comuni-variazioni.csv (fusioni: unione dei territori d'origine). Anche
+// un comune che ne ha incorporato un altro dopo la data dei confini prende il punto
+// interno all'unione dei territori, finché i confini contengono ancora l'incorporato.
 // Istruzioni complete: docs/distanze.md
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
@@ -71,7 +73,7 @@ export function derivePoints({ crs, ringsByCode }, variations, missingCodes) {
       unresolved.push({ code, reason: `comuni d'origine assenti dai confini: ${absent.join(', ')}` });
       continue;
     }
-    const parts = (v.type === 'FUSIONE' ? v.origins : v.origins.slice(0, 1)).map((o) => ringsByCode.get(o));
+    const parts = (v.type === 'APPROSSIMATO' ? v.origins.slice(0, 1) : v.origins).map((o) => ringsByCode.get(o));
     const p = pointOnSurfaceOfUnion(parts, UNION_TOLERANCE[crs.kind]);
     if (!p || !parts.some((rings) => isInside(rings, p.x, p.y))) {
       unresolved.push({ code, reason: 'impossibile calcolare un punto interno ai territori d\'origine' });
@@ -82,10 +84,76 @@ export function derivePoints({ crs, ringsByCode }, variations, missingCodes) {
   return { derived, unresolved };
 }
 
+/**
+ * Comuni che hanno incorporato altri comuni dopo la data dei confini: finché i
+ * confini contengono ancora gli incorporati, il punto si calcola sull'unione dei
+ * territori (incorporante + incorporati). Quando escono i confini successivi gli
+ * incorporati spariscono e vale di nuovo il poligono dell'incorporante.
+ * @returns {{ overrides: { code, lat, lon, variation }[], unresolved: { code: string, reason: string }[] }}
+ */
+export function incorporationPoints({ crs, ringsByCode }, variations) {
+  const overrides = [];
+  const unresolved = [];
+  for (const v of variations.filter((x) => x.type === 'INCORPORAZIONE')) {
+    if (!ringsByCode.has(v.code)) continue; // incorporante assente dai confini: lo segnala il confronto con l'elenco
+    const present = v.origins.filter((o) => ringsByCode.has(o));
+    if (present.length < 2) continue; // confini già aggiornati
+    const parts = present.map((o) => ringsByCode.get(o));
+    const p = pointOnSurfaceOfUnion(parts, UNION_TOLERANCE[crs.kind]);
+    if (!p || !parts.some((rings) => isInside(rings, p.x, p.y))) {
+      unresolved.push({ code: v.code, reason: 'impossibile calcolare un punto interno all\'unione dei territori' });
+      continue;
+    }
+    overrides.push({ ...toLatLon(crs, p, v.code), variation: { ...v, origins: present } });
+  }
+  return { overrides, unresolved };
+}
+
+/** Comuni confinanti (vertici in comune, entro la tolleranza) nei confini: proposta di incorporante. */
+export function neighbours({ crs, ringsByCode }, code) {
+  const tol = UNION_TOLERANCE[crs.kind];
+  const bbox = (rings) => {
+    const b = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const r of rings) for (const [x, y] of r) {
+      b[0] = Math.min(b[0], x);
+      b[1] = Math.min(b[1], y);
+      b[2] = Math.max(b[2], x);
+      b[3] = Math.max(b[3], y);
+    }
+    return b;
+  };
+  const target = ringsByCode.get(code);
+  if (!target) return [];
+  const tb = bbox(target);
+  const cell = (x, y) => `${Math.floor(x / tol)},${Math.floor(y / tol)}`;
+  const grid = new Set(target.flat().map(([x, y]) => cell(x, y)));
+  const near = (x, y) => {
+    const cx = Math.floor(x / tol);
+    const cy = Math.floor(y / tol);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (grid.has(`${cx + dx},${cy + dy}`)) return true;
+    return false;
+  };
+  const found = [];
+  for (const [other, rings] of ringsByCode) {
+    if (other === code) continue;
+    const b = bbox(rings);
+    if (b[0] > tb[2] + tol || b[2] < tb[0] - tol || b[1] > tb[3] + tol || b[3] < tb[1] - tol) continue;
+    const shared = rings.flat().filter(([x, y]) => near(x, y)).length;
+    if (shared > 0) found.push({ code: other, shared });
+  }
+  return found.sort((a, b) => b.shared - a.shared).map((f) => f.code);
+}
+
 /** "Com01012025_WGS84.shp" → "01/01/2025". */
 export function vintageFromName(name) {
   const m = basename(name).match(/(\d{2})(\d{2})(\d{4})/);
   return m ? `${m[1]}/${m[2]}/${m[3]}` : null;
+}
+
+function describeDerivation(v) {
+  if (v.type === 'FUSIONE') return `punto interno all'unione dei territori di ${v.origins.join('+')}, comune successivo alla data dei confini`;
+  if (v.type === 'INCORPORAZIONE') return `punto interno all'unione dei territori di ${v.origins.join('+')}, incorporazione successiva alla data dei confini`;
+  return `punto del comune d'origine ${v.origins[0]} (stima), comune successivo alla data dei confini`;
 }
 
 export function toCsv(points, sourceName, derived = []) {
@@ -94,10 +162,7 @@ export function toCsv(points, sourceName, derived = []) {
   return [
     `# Fonte: ISTAT - Confini delle unità amministrative a fini statistici${vintage ? ` al ${vintage}` : ''} (${basename(sourceName)}). Licenza CC BY 4.0.`,
     '# Punto interno al territorio comunale (point on surface), WGS84, calcolato con apps/api/scripts/istat/comuni-punti.mjs',
-    ...derived.map(
-      (d) =>
-        `# ${d.code} ${d.variation.name}: ${d.variation.type === 'FUSIONE' ? `punto interno all'unione dei territori di ${d.variation.origins.join('+')}` : `punto del comune d'origine ${d.variation.origins[0]} (stima)`}, comune successivo alla data dei confini`,
-    ),
+    ...derived.map((d) => `# ${d.code} ${d.variation.name}: ${describeDerivation(d.variation)}`),
     'istat;lat;lon',
     ...all.map((p) => `${p.code};${p.lat.toFixed(6)};${p.lon.toFixed(6)}`),
     '',
@@ -143,17 +208,24 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const { points, failed, crs } = computed;
   const { missing, extra } = compareWithList(points, listPath);
   const variations = readVariations();
-  const { derived, unresolved } = derivePoints(computed, variations, missing);
-  writeFileSync(out, toCsv(points, path, derived), 'utf8');
+  const fromVariations = derivePoints(computed, variations, missing);
+  const incorporated = incorporationPoints(computed, variations);
+  const derived = [...fromVariations.derived, ...incorporated.overrides];
+  const unresolved = [...fromVariations.unresolved, ...incorporated.unresolved];
+  // Il punto calcolato sull'unione sostituisce quello del solo territorio dell'incorporante.
+  const overridden = new Set(incorporated.overrides.map((o) => o.code));
+  writeFileSync(out, toCsv(points.filter((p) => !overridden.has(p.code)), path, derived), 'utf8');
 
   console.log(`Sistema di riferimento: ${crs.kind === 'utm' ? `UTM ${crs.zone}N` : 'geografico (lon/lat)'}`);
   console.log(`Confini: ${points.length} comuni (al ${vintageFromName(path) ?? 'data non indicata nel nome'}). Elenco: ${list.length} comuni.`);
   if (failed.length) console.warn(`Geometrie non valide (nessun punto): ${failed.join(', ')}`);
-  for (const d of derived) {
-    console.log(
-      `  ${d.code} ${d.variation.name}: ${d.variation.type === 'FUSIONE' ? `unione di ${d.variation.origins.join(' + ')}` : `stima dal comune ${d.variation.origins[0]}`} → ${d.lat}, ${d.lon}`,
-    );
-  }
+  const how = (v) =>
+    v.type === 'FUSIONE'
+      ? `unione di ${v.origins.join(' + ')}`
+      : v.type === 'INCORPORAZIONE'
+        ? `incorporazione, unione di ${v.origins.join(' + ')}`
+        : `stima dal comune ${v.origins[0]}`;
+  for (const d of derived) console.log(`  ${d.code} ${d.variation.name}: ${how(d.variation)} → ${d.lat}, ${d.lon}`);
   for (const u of unresolved) {
     console.warn(`  SENZA COORDINATE ${u.code} ${names.get(u.code) ?? ''}: ${u.reason}.`);
     console.warn('    Proposta: se è nato da fusione, aggiungere a comuni-variazioni.csv una riga FUSIONE con i codici d\'origine;');
@@ -161,13 +233,21 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.warn('    se è un cambio di codice, aggiornare l\'elenco con comuni:istat, che registra le ricodifiche.');
   }
   // Codici dei confini che non sono più nell'elenco: confluiti in fusioni oppure soppressi/incorporati/ricodificati.
-  const origins = new Map(variations.flatMap((v) => v.origins.map((o) => [o, v])));
+  const origins = new Map(variations.flatMap((v) => v.origins.filter((o) => o !== v.code).map((o) => [o, v])));
   const others = extra.filter((c) => !origins.has(c));
   for (const c of extra.filter((x) => origins.has(x))) console.log(`  ${c}: confluito in ${origins.get(c).code} ${origins.get(c).name} (coordinate conservate per i viaggi storici)`);
   if (others.length) {
     console.warn(`  Codici nei confini ma non nell'elenco (${others.length}): ${others.slice(0, 20).join(', ')}${others.length > 20 ? '…' : ''}`);
     console.warn('    Soppressi, incorporati o ricodificati dopo la data dei confini: coordinate conservate per i viaggi storici.');
     if (others.length > 20) console.warn('    Molti codici: l\'elenco potrebbe essere più vecchio dei confini (ricodifiche). Aggiornarlo con comuni:istat.');
+    else {
+      for (const c of others) {
+        const near = neighbours(computed, c).filter((n) => names.has(n));
+        console.warn(`    ${c}: se è stato incorporato, l'incorporante è probabilmente uno dei comuni confinanti:`);
+        console.warn(`      ${near.length ? near.map((n) => `${n} ${names.get(n)}`).join(', ') : 'nessun confinante trovato'}`);
+        console.warn(`      Indicarlo con: npm run comuni:istat -w api -- <elenco.csv> --al GG/MM/AAAA --incorporazione ${c}=<codice>`);
+      }
+    }
   }
   console.log(`Comuni dell'elenco senza coordinate: ${unresolved.length}`);
   console.log(`Scritto: ${out}. Per caricarlo nel database: npm run db:seed`);

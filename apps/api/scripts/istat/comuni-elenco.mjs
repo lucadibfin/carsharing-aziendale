@@ -4,17 +4,23 @@
 // Uso (dalla radice del repository):
 //   npm run comuni:istat -w api -- <Elenco-comuni-italiani.csv> --al 01/01/2026
 //
-// --al = data di riferimento dell'elenco: deve coincidere con quella dei confini
-// usati per le coordinate (es. Com01012026 → 01/01/2026).
+// --al = data di riferimento dell'elenco (per SITUAS, il giorno dell'estrazione). Può
+// essere successiva a quella dei confini: le differenze sono gestite come descritto
+// in docs/distanze.md ("Elenco e confini: date diverse").
 //
 // I cambi di codice di un comune che resta lo stesso (stessa denominazione) sono
 // RICODIFICHE, non soppressioni: vengono aggiunte a data/comuni-ricodifiche.csv e
 // il seed sposta profili e viaggi sul nuovo codice.
+//
+// Un comune soppresso che non confluisce in un comune nuovo (fusione) è stato
+// INCORPORATO in un comune esistente. L'elenco non dice quale: lo script lo segnala e
+// l'incorporante si indica con --incorporazione <soppresso>=<incorporante>; viene
+// registrato in data/comuni-variazioni.csv e il seed sposta profili e viaggi.
 // Fonte: ISTAT, licenza CC BY 4.0. Istruzioni complete: docs/distanze.md
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { mergeVariations, VARIATIONS_PATH } from './variazioni.mjs';
+import { incorporatedCodes, mergeVariations, readVariations, VARIATIONS_PATH } from './variazioni.mjs';
 
 const dataDir = resolve(import.meta.dirname, '../../prisma/data');
 const listPath = resolve(dataDir, 'comuni.csv');
@@ -196,6 +202,79 @@ export function detectFusions(added, removed) {
   return { fusions, unresolved };
 }
 
+/** "--incorporazione 018082=018094" (anche più coppie separate da virgola). */
+export function parseIncorporationArgs(args) {
+  const pairs = [];
+  args.forEach((a, i) => {
+    if (a !== '--incorporazione') return;
+    for (const p of (args[i + 1] ?? '').split(',').filter(Boolean)) {
+      const m = p.trim().match(/^(\d{6})=(\d{6})$/);
+      if (!m) throw new Error(`--incorporazione: formato atteso <soppresso>=<incorporante>, con codici ISTAT di 6 cifre (ricevuto "${p}")`);
+      pairs.push({ from: m[1], to: m[2] });
+    }
+  });
+  return pairs;
+}
+
+/**
+ * Comuni soppressi che NON sono confluiti in un comune nuovo (fusione): sono
+ * incorporazioni in un comune esistente, che mantiene nome e codice. L'elenco
+ * vigente non dice quale sia l'incorporante, quindi:
+ * - se è già nel registro delle variazioni, si usa quello;
+ * - se è indicato con --incorporazione, si registra;
+ * - altrimenti il comune resta "da classificare" e va chiesto l'incorporante.
+ * @param {ComuneRow[]} removed comuni spariti non coinvolti in fusioni
+ * @param {ComuneRow[]} before elenco precedente
+ * @param {ComuneRow[]} after elenco nuovo
+ * @param {ComuneRow[]} added comuni nuovi
+ */
+export function classifyIncorporations(removed, before, after, added, variations, requested) {
+  const registered = incorporatedCodes(variations);
+  const now = new Map(after.map((r) => [r.istat, r]));
+  const old = new Map(before.map((r) => [r.istat, r]));
+  const isNew = new Set(added.map((r) => r.istat));
+  const errors = [];
+  const byFrom = new Map();
+  for (const { from, to } of requested) {
+    if (from === to) errors.push(`--incorporazione ${from}=${to}: soppresso e incorporante coincidono`);
+    else if (now.has(from)) errors.push(`--incorporazione ${from}=${to}: ${from} ${now.get(from).name} è ancora nell'elenco vigente, non è soppresso`);
+    else if (!now.has(to)) errors.push(`--incorporazione ${from}=${to}: l'incorporante ${to} non è nell'elenco vigente`);
+    else if (isNew.has(to)) errors.push(`--incorporazione ${from}=${to}: ${to} ${now.get(to).name} è un comune nuovo, quindi è una FUSIONE (da registrare come tale)`);
+    else byFrom.set(from, to);
+  }
+  const incorporations = [];
+  const pending = [];
+  const seen = new Set();
+  for (const r of removed) {
+    seen.add(r.istat);
+    if (byFrom.has(r.istat)) incorporations.push({ comune: r, into: now.get(byFrom.get(r.istat)), registered: false });
+    else if (registered.has(r.istat)) {
+      const v = registered.get(r.istat);
+      incorporations.push({ comune: r, into: now.get(v.code) ?? { istat: v.code, name: v.name }, registered: true });
+    } else pending.push(r);
+  }
+  // Indicati dopo aver già aggiornato l'elenco (il comune non è più tra i "soppressi").
+  for (const [from, to] of byFrom) {
+    if (seen.has(from)) continue;
+    incorporations.push({ comune: old.get(from) ?? { istat: from, name: '', province: '', region: '', catastale: '' }, into: now.get(to), registered: false });
+  }
+  return { incorporations, pending, errors };
+}
+
+/** Righe INCORPORAZIONE del registro: una per comune incorporante. */
+export function incorporationEntries(incorporations, refDate) {
+  const byInto = new Map();
+  for (const i of incorporations.filter((x) => !x.registered)) byInto.set(i.into.istat, [...(byInto.get(i.into.istat) ?? []), i]);
+  return [...byInto.values()].map((list) => ({
+    code: list[0].into.istat,
+    name: list[0].into.name,
+    type: 'INCORPORAZIONE',
+    origins: [list[0].into.istat, ...list.map((i) => i.comune.istat)].sort(),
+    detectedAt: refDate,
+    note: `incorporazione di ${list.map((i) => i.comune.name || i.comune.istat).join(' e ')}`,
+  }));
+}
+
 export function listToCsv(rows, refDate, source = 'ISTAT - Elenco comuni italiani') {
   return [
     `# Fonte: ${source} al ${refDate}. Licenza CC BY 4.0.`,
@@ -219,25 +298,41 @@ export function mergeRecodings(existingText, recoded, refDate) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
-  const input = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--al');
+  const VALUE_FLAGS = ['--al', '--incorporazione'];
+  const input = args.find((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]));
   const refDate = args[args.indexOf('--al') + 1];
   const dryRun = args.includes('--dry-run');
   if (!input || !args.includes('--al') || !/^\d{2}\/\d{2}\/\d{4}$/.test(refDate ?? '')) {
-    console.error('Uso: npm run comuni:istat -w api -- <elenco.csv> --al GG/MM/AAAA [--dry-run]');
+    console.error('Uso: npm run comuni:istat -w api -- <elenco.csv> --al GG/MM/AAAA [--incorporazione SOPPRESSO=INCORPORANTE] [--dry-run]');
     console.error('--al: data di riferimento dell\'elenco (per SITUAS, il giorno dell\'estrazione).');
+    console.error('--incorporazione: comune soppresso e comune esistente che lo ha incorporato (codici ISTAT), ripetibile.');
     process.exit(1);
   }
   const buf = readFileSync(resolve(process.env.INIT_CWD ?? process.cwd(), input));
   const rows = parseElenco(buf);
   const source = sourceName(buf);
-  const d = diffLists(readList(), rows);
+  const before = readList();
+  const d = diffLists(before, rows);
   const { fusions, unresolved } = detectFusions(d.added, d.removed);
   const fusedOrigins = new Set(fusions.flatMap((f) => f.origins.map((o) => o.istat)));
+  const inc = classifyIncorporations(
+    d.removed.filter((x) => !fusedOrigins.has(x.istat)),
+    before,
+    rows,
+    d.added,
+    readVariations(),
+    parseIncorporationArgs(args),
+  );
+  if (inc.errors.length) {
+    for (const e of inc.errors) console.error(`Errore: ${e}`);
+    process.exit(1);
+  }
 
   console.log(`Fonte: ${source} al ${refDate}. Comuni: ${rows.length}`);
   console.log(
     `Ricodificati: ${d.recoded.length}, nuovi: ${d.added.length} (da fusione: ${fusions.length}), ` +
-      `soppressi o fusi: ${d.removed.length}, rinominati: ${d.renamed.length}, ambigui: ${d.ambiguous.length}`,
+      `soppressi: ${d.removed.length} (in fusioni: ${fusedOrigins.size}, incorporati: ${inc.incorporations.length}, da classificare: ${inc.pending.length}), ` +
+      `rinominati: ${d.renamed.length}, ambigui: ${d.ambiguous.length}`,
   );
   const byProvince = {};
   for (const r of d.recoded) {
@@ -256,9 +351,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         `, oppure APPROSSIMATO con il comune da cui si è staccato.`,
     );
   }
-  for (const r of d.removed.filter((x) => !fusedOrigins.has(x.istat))) {
-    console.warn(`  - ${r.istat} ${r.name} (${r.province}): non più nell'elenco e non confluito in un comune nuovo.`);
-    console.warn('    Probabile incorporazione in un comune esistente: resterà nel DB come non selezionabile (profili e viaggi invariati).');
+  for (const i of inc.incorporations) {
+    const where = i.comune.province ? ` (${i.comune.province})` : '';
+    console.log(`  - ${i.comune.istat} ${i.comune.name}${where}: INCORPORAZIONE in ${i.into.istat} ${i.into.name}${i.registered ? ' (già nel registro)' : ''}`);
+  }
+  for (const r of inc.pending) {
+    console.warn(`  ! ${r.istat} ${r.name} (${r.province}): soppresso senza un comune nuovo → incorporato in un comune esistente. INCORPORANTE DA INDICARE.`);
+    console.warn('    Verificare su SITUAS (variazioni amministrative) in quale comune è confluito e rilanciare aggiungendo:');
+    console.warn(`      --incorporazione ${r.istat}=<codice ISTAT dell'incorporante>`);
+    console.warn('    Proposta: coords:istat elenca i comuni confinanti nei confini. Finché non è indicato, il comune resta nel DB');
+    console.warn('    come non selezionabile e profili e viaggi che lo usano non vengono spostati.');
   }
   for (const r of d.renamed) console.log(`  ~ ${r.istat} ${r.name}`);
   for (const a of d.ambiguous) console.warn(`  ? corrispondenza ambigua ${a.key}: ${a.from.join(',')} → ${a.to.join(',')} (trattati come soppressi/nuovi)`);
@@ -270,18 +372,22 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (d.recoded.length) {
       writeFileSync(recodingsPath, mergeRecodings(existsSync(recodingsPath) ? readFileSync(recodingsPath, 'utf8') : '', d.recoded, refDate), 'utf8');
     }
-    if (fusions.length) {
-      const entries = fusions.map((f) => ({
+    const entries = [
+      ...fusions.map((f) => ({
         code: f.comune.istat,
         name: f.comune.name,
         type: 'FUSIONE',
         origins: f.origins.map((o) => o.istat).sort(),
         detectedAt: refDate,
         note: `fusione di ${f.origins.map((o) => o.name).join(' e ')} (riconosciuta dal nome)`,
-      }));
+      })),
+      ...incorporationEntries(inc.incorporations, refDate),
+    ];
+    if (entries.length) {
       writeFileSync(VARIATIONS_PATH, mergeVariations(existsSync(VARIATIONS_PATH) ? readFileSync(VARIATIONS_PATH, 'utf8') : '', entries), 'utf8');
     }
-    console.log(`Scritti: ${listPath}${d.recoded.length ? ', comuni-ricodifiche.csv' : ''}${fusions.length ? ', comuni-variazioni.csv' : ''}`);
+    console.log(`Scritti: ${listPath}${d.recoded.length ? ', comuni-ricodifiche.csv' : ''}${entries.length ? ', comuni-variazioni.csv' : ''}`);
+    if (inc.pending.length) console.warn(`ATTENZIONE: ${inc.pending.length} comuni soppressi con incorporante da indicare (vedi sopra).`);
     console.log('Poi: npm run coords:istat -w api -- <confini.shp> e npm run db:seed');
   }
 }
