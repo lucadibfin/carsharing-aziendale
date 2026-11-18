@@ -33,14 +33,9 @@ export default defineConfig({
       use: { ...devices['Pixel 7'], channel: channel === 'chromium' ? undefined : channel },
     },
   ],
+  // DB e API: avviati e fermati in modo ordinato da globalSetup/teardown (vedi scripts/start-stack.mjs).
+  globalSetup: './global-setup.mjs',
   webServer: [
-    {
-      command: 'node scripts/start-stack.mjs',
-      url: 'http://127.0.0.1:3100/api/policies/current',
-      timeout: 180_000,
-      reuseExistingServer: false,
-      stdout: 'pipe',
-    },
     {
       command: 'npm start -w web -- --port 4300 --proxy-config ../../e2e/proxy.conf.json',
       cwd: '..',
