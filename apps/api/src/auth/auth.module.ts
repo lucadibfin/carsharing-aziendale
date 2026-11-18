@@ -29,7 +29,9 @@ import { SessionService } from './session.service.js';
     {
       provide: IDENTITY_PROVIDER,
       inject: [ENV],
-      useFactory: (env: Env) => (env.AUTH_PROVIDER === 'corporate' ? new CorporateIdentityProvider(env) : new MockIdentityProvider()),
+      // In modalità demo l'integrazione aziendale non è mai attiva, qualunque sia la configurazione.
+      useFactory: (env: Env) =>
+        env.AUTH_PROVIDER === 'corporate' && !env.DEMO_MODE ? new CorporateIdentityProvider(env) : new MockIdentityProvider(),
     },
   ],
   exports: [SessionService, IDENTITY_PROVIDER],

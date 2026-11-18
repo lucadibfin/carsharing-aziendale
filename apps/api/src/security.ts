@@ -49,19 +49,59 @@ export function configureApp(app: INestApplication, env: Env): void {
   // Dietro il reverse proxy (Caddy) per ottenere l'IP reale del client.
   http.set('trust proxy', env.TRUST_PROXY);
 
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'none'"],
-          frameAncestors: ["'none'"],
-        },
+  const hsts = env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false;
+  const apiHeaders = helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],
       },
-      hsts: env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false,
-      crossOriginResourcePolicy: { policy: 'same-origin' },
-      referrerPolicy: { policy: 'no-referrer' },
-    }),
-  );
+    },
+    hsts,
+    crossOriginResourcePolicy: { policy: 'same-origin' },
+    referrerPolicy: { policy: 'no-referrer' },
+  });
+  // Pagine della PWA servite dall'API (WEB_DIST_DIR): stessa CSP prevista per il
+  // reverse proxy di produzione e già provata con scripts/serve-https.mjs.
+  const webHeaders = helmet({
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:'],
+        fontSrc: ["'self'"],
+        connectSrc: ["'self'"],
+        workerSrc: ["'self'"],
+        manifestSrc: ["'self'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        objectSrc: ["'none'"],
+      },
+    },
+    hsts,
+    crossOriginResourcePolicy: { policy: 'same-origin' },
+    referrerPolicy: { policy: 'no-referrer' },
+  });
+  const servesWeb = Boolean(env.WEB_DIST_DIR);
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (!servesWeb || req.path === '/api' || req.path.startsWith('/api/')) return apiHeaders(req, res, next);
+    res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
+    return webHeaders(req, res, next);
+  });
+  if (env.DEMO_MODE) {
+    // Demo pubblica: esclusa dai motori di ricerca (anche meta robots in index.html e robots.txt).
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+      if (req.path === '/robots.txt' && (req.method === 'GET' || req.method === 'HEAD')) {
+        res.type('text/plain').send('User-agent: *\nDisallow: /\n');
+        return;
+      }
+      next();
+    });
+  }
   app.use(express.json({ limit: '32kb' }));
   app.use(cookieParser());
   app.use('/api', csrfMiddleware(env));

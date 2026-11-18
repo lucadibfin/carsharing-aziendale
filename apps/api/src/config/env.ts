@@ -81,13 +81,37 @@ export const envSchema = z
 
     JOBS_ENABLED: bool.default(true),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+
+    /**
+     * Demo pubblica con dati fittizi (docs/demo.md): solo login di prova, nessuna
+     * email inviata (i codici compaiono a schermo), banner e noindex. Esclude
+     * l'integrazione con l'API aziendale.
+     */
+    DEMO_MODE: bool.default(false),
+    /** Cartella della build web servita dall'API (stessa origine); vuoto = non servita. */
+    WEB_DIST_DIR: z.string().optional().default(''),
   })
   .superRefine((env, ctx) => {
+    if (env.DEMO_MODE) {
+      if (env.AUTH_PROVIDER !== 'mock') {
+        ctx.addIssue({ code: 'custom', path: ['AUTH_PROVIDER'], message: 'in modalità demo è ammesso solo il login di prova (mock)' });
+      }
+      for (const key of ['CORPORATE_AUTH_URL', 'CORPORATE_CHECK_URL'] as const) {
+        if (env[key]) {
+          ctx.addIssue({ code: 'custom', path: [key], message: 'l’integrazione aziendale non è attivabile in modalità demo' });
+        }
+      }
+      if (env.MAIL_TRANSPORT && env.MAIL_TRANSPORT !== 'disabled') {
+        ctx.addIssue({ code: 'custom', path: ['MAIL_TRANSPORT'], message: 'in modalità demo nessuna email viene inviata: lasciare vuoto' });
+      }
+    }
+    // In demo il login di prova, l'utenza "admin" e l'assenza di SMTP sono ammessi anche in produzione.
+    const realProduction = env.NODE_ENV === 'production' && !env.DEMO_MODE;
     if (env.NODE_ENV === 'production') {
-      if (env.AUTH_PROVIDER === 'mock') {
+      if (realProduction && env.AUTH_PROVIDER === 'mock') {
         ctx.addIssue({ code: 'custom', path: ['AUTH_PROVIDER'], message: 'il provider mock non è ammesso in produzione' });
       }
-      if (env.INITIAL_GLOBAL_ADMIN === 'admin') {
+      if (realProduction && env.INITIAL_GLOBAL_ADMIN === 'admin') {
         ctx.addIssue({
           code: 'custom',
           path: ['INITIAL_GLOBAL_ADMIN'],
@@ -98,10 +122,10 @@ export const envSchema = z
         ctx.addIssue({ code: 'custom', path: ['APP_ORIGIN'], message: 'in produzione deve essere https://' });
       }
     }
-    if (env.NODE_ENV === 'production' && (env.MAIL_TRANSPORT ?? 'smtp') !== 'smtp') {
+    if (realProduction && (env.MAIL_TRANSPORT ?? 'smtp') !== 'smtp') {
       ctx.addIssue({ code: 'custom', path: ['MAIL_TRANSPORT'], message: 'in produzione è ammesso solo smtp' });
     }
-    if ((env.MAIL_TRANSPORT === 'smtp' || env.NODE_ENV === 'production') && !env.SMTP_HOST) {
+    if ((env.MAIL_TRANSPORT === 'smtp' || realProduction) && !env.SMTP_HOST) {
       ctx.addIssue({ code: 'custom', path: ['SMTP_HOST'], message: 'obbligatorio: serve per verificare le email degli utenti' });
     }
     if (env.AUTH_PROVIDER === 'corporate' && !env.CORPORATE_AUTH_URL.startsWith('https://')) {
@@ -146,5 +170,6 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     const problems = r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n  ');
     throw new Error(`Configurazione non valida:\n  ${problems}`);
   }
-  return { ...r.data, MAIL_TRANSPORT: r.data.MAIL_TRANSPORT ?? (r.data.SMTP_HOST ? 'smtp' : 'outbox') };
+  const mail = r.data.DEMO_MODE ? 'disabled' : (r.data.MAIL_TRANSPORT ?? (r.data.SMTP_HOST ? 'smtp' : 'outbox'));
+  return { ...r.data, MAIL_TRANSPORT: mail };
 }

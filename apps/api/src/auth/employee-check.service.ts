@@ -42,7 +42,7 @@ export class EmployeeCheckService implements OnModuleInit {
   ) {}
 
   get enabled(): boolean {
-    return this.env.EMPLOYEE_CHECK_MODE !== 'session-expiry' && typeof this.idp.checkActive === 'function';
+    return !this.env.DEMO_MODE && this.env.EMPLOYEE_CHECK_MODE !== 'session-expiry' && typeof this.idp.checkActive === 'function';
   }
 
   onModuleInit(): void {
