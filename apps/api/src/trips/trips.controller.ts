@@ -12,6 +12,8 @@ import {
   inviteUserSchema,
   type InviteUserInput,
   joinRequestSchema,
+  routeEstimateSchema,
+  type RouteEstimateInput,
   type JoinRequestInput,
   searchTripsSchema,
   type SearchTripsInput,
@@ -39,6 +41,13 @@ export class TripsController {
   @Post()
   create(@CurrentUser() u: SessionUser, @Body({ schema: createTripSchema }) body: CreateTripInput) {
     return this.trips.create(u.userId, body);
+  }
+
+  /** Partenza proposta e tempi di guida verso la sede, per il modulo di proposta. */
+  @Post('estimate')
+  @HttpCode(200)
+  estimate(@Body({ schema: routeEstimateSchema }) body: RouteEstimateInput) {
+    return this.trips.estimate(body);
   }
 
   @Get('search')

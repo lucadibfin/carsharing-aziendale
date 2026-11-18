@@ -46,12 +46,19 @@ import { recurrenceLabel, STATUS_LABELS } from '../shared/labels';
         <mat-card appearance="outlined" class="block">
           <mat-card-content class="stack">
             <div><mat-icon svgIcon="schedule" />
+              @if (t.departureTime) { Partenza alle <strong>{{ t.departureTime }}</strong> · }
               Arrivo in <strong>{{ t.siteName }}</strong> alle <strong>{{ t.arrivalTime }}</strong>
               @if (t.returnTime) { · ripartenza alle <strong>{{ t.returnTime }}</strong> }
             </div>
             <div><mat-icon svgIcon="route" />
-              @for (s of t.stops; track s.order) { {{ s.comuneName }} → } {{ t.siteName }}
+              @for (s of t.stops; track s.order) {
+                {{ s.comuneName }}@if (s.passTime) { <span class="muted"> {{ $first ? s.passTime : 'circa ' + s.passTime }}</span> } →
+              }
+              {{ t.siteName }} <span class="muted">{{ t.arrivalTime }}</span>
             </div>
+            @if (t.stops.length > 1 && t.stops[1]!.passTime) {
+              <p class="muted small">Gli orari di passaggio sono stimati in base alla distanza.</p>
+            }
             @if (t.meetingPoint) { <div><mat-icon svgIcon="location_on" />{{ t.meetingPoint }}</div> }
             <div><mat-icon svgIcon="person" />
               Conducente: {{ t.driver.firstName }} {{ t.driver.lastName }}
@@ -174,7 +181,7 @@ import { recurrenceLabel, STATUS_LABELS } from '../shared/labels';
             @for (m of t.seriesMembers; track m.id) {
               <mat-list-item>
                 <span matListItemTitle>{{ m.firstName }} {{ m.lastName }}</span>
-                <span matListItemLine>Sale a {{ m.boardingComuneName }}</span>
+                <span matListItemLine>Sale a {{ m.boardingComuneName }}{{ boardTime(m.boardingComuneName) }}</span>
                 @if (isDriver()) {
                   <button mat-icon-button matListItemMeta (click)="removeMember(m)" [attr.aria-label]="'Togli ' + m.firstName + ' dal gruppo fisso'">
                     <mat-icon svgIcon="person_remove" />
@@ -192,7 +199,7 @@ import { recurrenceLabel, STATUS_LABELS } from '../shared/labels';
             @for (p of accepted(); track p.id) {
               <mat-list-item>
                 <span matListItemTitle>{{ p.user.firstName }} {{ p.user.lastName }}</span>
-                <span matListItemLine>Sale a {{ p.boardingComuneName }}
+                <span matListItemLine>Sale a {{ p.boardingComuneName }}{{ boardTime(p.boardingComuneName) }}
                   @if (p.phone) { · <a [href]="'tel:' + p.phone">{{ p.phone }}</a> }
                 </span>
                 <div matListItemMeta class="row">
@@ -264,7 +271,7 @@ import { recurrenceLabel, STATUS_LABELS } from '../shared/labels';
                 @for (p of requests(); track p.id) {
                   <mat-list-item>
                     <span matListItemTitle>{{ p.user.firstName }} {{ p.user.lastName }}</span>
-                    <span matListItemLine>Sale a {{ p.boardingComuneName }}</span>
+                    <span matListItemLine>Sale a {{ p.boardingComuneName }}{{ boardTime(p.boardingComuneName) }}</span>
                     <div matListItemMeta class="row">
                       <button mat-icon-button (click)="reject(p.id)" aria-label="Rifiuta"><mat-icon svgIcon="close" /></button>
                       <button mat-icon-button color="primary" (click)="accept(p.id)" aria-label="Accetta"><mat-icon svgIcon="check" /></button>
@@ -281,7 +288,7 @@ import { recurrenceLabel, STATUS_LABELS } from '../shared/labels';
                 @for (p of waitlist(); track p.id) {
                   <mat-list-item>
                     <span matListItemTitle>{{ p.user.firstName }} {{ p.user.lastName }}</span>
-                    <span matListItemLine>Sale a {{ p.boardingComuneName }}</span>
+                    <span matListItemLine>Sale a {{ p.boardingComuneName }}{{ boardTime(p.boardingComuneName) }}</span>
                     <div matListItemMeta class="row">
                       <button mat-icon-button (click)="reject(p.id)" aria-label="Togli dalla lista d'attesa"><mat-icon svgIcon="close" /></button>
                       <button mat-icon-button color="primary" (click)="accept(p.id)" [disabled]="full()" aria-label="Accetta"><mat-icon svgIcon="check" /></button>
@@ -394,7 +401,9 @@ import { recurrenceLabel, STATUS_LABELS } from '../shared/labels';
           <mat-form-field class="full-width">
             <mat-label>Dove sali?</mat-label>
             <mat-select [(ngModel)]="boardingComune">
-              @for (s of t.stops; track s.order) { <mat-option [value]="s.comuneIstat">{{ s.comuneName }}</mat-option> }
+              @for (s of t.stops; track s.order) {
+                <mat-option [value]="s.comuneIstat">{{ s.comuneName }}@if (s.passTime) { · {{ $first ? 'alle' : 'circa' }} {{ s.passTime }} }</mat-option>
+              }
             </mat-select>
           </mat-form-field>
         </ng-template>
@@ -487,6 +496,12 @@ export class TripDetailPage implements OnInit {
     const pub = dates.filter((d) => d.visibility === 'PUBLIC').length;
     return pub > dates.length / 2 ? 'PUBLIC' : 'PRIVATE';
   });
+
+  /** " · circa 07:35" accanto al comune di salita, se c'è l'orario stimato. */
+  protected boardTime(comuneName: string): string {
+    const s = this.trip()?.stops.find((x) => x.comuneName === comuneName);
+    return s?.passTime ? ' · circa ' + s.passTime : '';
+  }
 
   protected readonly favoriteIds = signal(new Set<string>());
   protected readonly myId = computed(() => this.session.me()?.id);

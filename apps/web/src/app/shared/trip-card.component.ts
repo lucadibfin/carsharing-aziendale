@@ -15,7 +15,9 @@ import { recurrenceLabel, STATUS_LABELS } from './labels';
         <div class="head">
           <div>
             <div class="date">{{ trip().date | date: 'EEE d MMMM' }}</div>
-            <div class="muted">Arrivo in {{ trip().siteName }} alle <strong>{{ trip().arrivalTime }}</strong>
+            <div class="muted">
+              @if (trip().departureTime) { Partenza <strong>{{ trip().departureTime }}</strong> · }
+              Arrivo in {{ trip().siteName }} alle <strong>{{ trip().arrivalTime }}</strong>
               @if (trip().returnTime) { · ripartenza {{ trip().returnTime }} }
             </div>
           </div>

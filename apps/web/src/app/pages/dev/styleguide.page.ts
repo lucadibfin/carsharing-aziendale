@@ -57,9 +57,13 @@ export class StyleguidePage {
   protected readonly required = new FormControl('', Validators.required);
   protected readonly trip: TripSummaryDto = {
     id: 'demo', seriesId: 'demo', siteId: 'demo', siteName: 'Milano', date: tomorrow, arrivalTime: '08:45', returnTime: '18:00',
+    departureTime: '08:05',
     visibility: 'PRIVATE', status: 'SCHEDULED', seats: 4, seatsTaken: 1,
     driver: { id: 'u1', firstName: 'Giulia', lastName: 'Rossi' },
-    stops: [{ order: 0, comuneIstat: '015146', comuneName: 'Monza' }, { order: 1, comuneIstat: '015209', comuneName: 'Sesto San Giovanni' }],
+    stops: [
+      { order: 0, comuneIstat: '015146', comuneName: 'Monza', passTime: '08:05' },
+      { order: 1, comuneIstat: '015209', comuneName: 'Sesto San Giovanni', passTime: '08:20' },
+    ],
     meetingPoint: null, myRole: 'PARTICIPANT', myStatus: 'ACCEPTED',
     recurrence: { weekdays: [1, 3, 5], endDate: null }, isSeriesMember: true,
   };

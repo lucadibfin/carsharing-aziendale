@@ -106,6 +106,16 @@ export interface TripStopDto {
   order: number;
   comuneIstat: string;
   comuneName: string;
+  /** Orario stimato di passaggio ("circa"); per il primo comune è la partenza. Null per i viaggi più vecchi. */
+  passTime: string | null;
+}
+
+/** Tempi di guida verso la sede per il modulo di proposta. */
+export interface RouteEstimateDto {
+  /** Partenza proposta. */
+  departureTime: string;
+  /** Minuti di guida da ogni comune del percorso alla sede (null se mancano le coordinate). */
+  driveMinutes: (number | null)[];
 }
 
 export interface TripParticipantDto {
@@ -127,6 +137,8 @@ export interface TripSummaryDto {
   date: string;
   arrivalTime: string;
   returnTime: string | null;
+  /** Partenza dal primo comune; null per i viaggi creati prima di questo campo. */
+  departureTime: string | null;
   visibility: TripVisibility;
   status: TripStatus;
   seats: number;

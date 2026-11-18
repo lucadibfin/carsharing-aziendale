@@ -12,6 +12,7 @@ import { SeriesService } from './series.service.js';
 import { TripAccessPolicy } from './trip-access.policy.js';
 import { TripMapper } from './trip-mapper.js';
 import { TripsController } from './trips.controller.js';
+import { TravelTimeService } from './travel-time.service.js';
 import { TripsService } from './trips.service.js';
 import { WaitlistService } from './waitlist.service.js';
 
@@ -20,7 +21,7 @@ import { WaitlistService } from './waitlist.service.js';
   controllers: [TripsController, InvitationsController],
   providers: [
     TripAccessPolicy, TripMapper, TripsService, ParticipationService, InvitationsService, ChatMembershipEvents, AbsenceReportsService,
-    SeriesMaterializer, SeriesService, WaitlistService, RemindersService,
+    SeriesMaterializer, SeriesService, WaitlistService, RemindersService, TravelTimeService,
   ],
   exports: [TripAccessPolicy, TripsService, ChatMembershipEvents, AbsenceReportsService, WaitlistService, SeriesMaterializer, RemindersService],
 })

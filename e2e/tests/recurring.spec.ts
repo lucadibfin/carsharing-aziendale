@@ -21,6 +21,9 @@ test('viaggio ricorrente: gruppo fisso via link, "non ci sono", data resa pubbli
   await pickComune(driver, 'Comune di partenza', 'Bergamo', 'Bergamo (BG)');
   await driver.getByRole('button', { name: 'Aggiungi comune di passaggio' }).click();
   await pickComune(driver, 'Comune di passaggio 1', 'Monza', 'Monza (MB)');
+  // L'app propone l'orario di partenza e stima il passaggio da Monza.
+  await expect(driver.getByText(/Passaggio stimato: circa \d{2}:\d{2}/)).toBeVisible();
+  await expect(driver.getByLabel('Orario di partenza')).toHaveValue(/^0[5-8]:\d{2}$/);
   await driver.getByRole('combobox', { name: 'Posti disponibili per i passeggeri' }).click();
   await driver.getByRole('option', { name: '1', exact: true }).click();
   await driver.getByRole('radio', { name: 'Privato' }).or(driver.getByRole('button', { name: 'Privato' })).click();
@@ -47,6 +50,7 @@ test('viaggio ricorrente: gruppo fisso via link, "non ci sono", data resa pubbli
   await member.getByRole('option', { name: 'Monza' }).click();
   await member.getByRole('button', { name: "Accetta l'invito" }).click();
   await expect(member.getByText('Per questa data sei')).toBeVisible();
+  await expect(member.getByText(/Partenza alle \d{2}:\d{2}/)).toBeVisible();
 
   // Seconda data: "non ci sono".
   const secondDate = member.locator('.date-row').nth(1);

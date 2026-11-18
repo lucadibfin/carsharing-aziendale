@@ -10,7 +10,7 @@ import type {
 import { AppException, Forbidden } from '../common/errors.js';
 import { Clock } from '../common/clock.js';
 import { PrismaService } from '../common/prisma.service.js';
-import { MAX_SERIES_DAYS } from '@fcs/shared';
+import { MAX_SERIES_DAYS, type RouteEstimateDto, type RouteEstimateInput } from '@fcs/shared';
 import { addDays, dateOnly, romeToUtc, todayInRome } from '../common/time.js';
 import { FavoritesService } from '../favorites/favorites.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -20,6 +20,7 @@ import { StatsService } from '../stats/stats.service.js';
 import { ChatMembershipEvents } from './chat-membership.events.js';
 import { firstOccurrence } from './series-dates.js';
 import { SeriesMaterializer } from './series-materializer.js';
+import { TravelTimeService } from './travel-time.service.js';
 import { TripAccessPolicy } from './trip-access.policy.js';
 import { type LoadedTrip, tripInclude } from './trip-loader.js';
 import { TripMapper } from './trip-mapper.js';
@@ -42,7 +43,15 @@ export class TripsService {
     private readonly stats: StatsService,
     private readonly favorites: FavoritesService,
     private readonly materializer: SeriesMaterializer,
+    private readonly travel: TravelTimeService,
   ) {}
+
+  /** Partenza proposta e tempi di guida per l'anteprima del modulo di proposta. */
+  async estimate(input: RouteEstimateInput): Promise<RouteEstimateDto> {
+    const site = await this.prisma.site.findFirst({ where: { id: input.siteId, active: true }, select: { id: true } });
+    if (!site) throw new AppException('INVALID_SITE', 'Sede non valida');
+    return this.travel.estimate(input.siteId, input.arrivalTime, [input.departureComune, ...input.viaComuni]);
+  }
 
   async create(userId: string, input: CreateTripInput): Promise<TripDetailDto> {
     const now = this.clock.now();
@@ -69,6 +78,8 @@ export class TripsService {
     const codes = [input.departureComune, ...input.viaComuni];
     const found = await this.prisma.comune.count({ where: { istat: { in: codes }, active: true } });
     if (found !== codes.length) throw new AppException('INVALID_COMUNE', 'Uno o più comuni non sono validi');
+    // Partenza (scelta dal conducente o proposta) e orari stimati di passaggio, prima della transazione.
+    const plan = await this.travel.plan(input.siteId, input.arrivalTime, codes, input.departureTime);
 
     const tripId = await this.prisma.$transaction(async (tx) => {
       const series = await tx.tripSeries.create({
@@ -81,10 +92,11 @@ export class TripsService {
           endDate: recurring ? (input.endDate ? dateOnly(input.endDate) : null) : dateOnly(input.date),
           arrivalTime: input.arrivalTime,
           returnTime: input.returnTime ?? null,
+          departureTime: plan.departureTime,
           seats: input.seats,
           meetingPoint: input.meetingPoint || null,
           notes: input.notes || null,
-          stops: { create: codes.map((comuneIstat, order) => ({ order, comuneIstat })) },
+          stops: { create: codes.map((comuneIstat, order) => ({ order, comuneIstat, passTime: plan.passTimes[order] ?? null })) },
         },
       });
       if (recurring) {

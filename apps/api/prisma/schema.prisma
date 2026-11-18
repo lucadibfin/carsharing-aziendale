@@ -353,6 +353,9 @@ model TripSeries {
   endDate      DateTime?      @db.Date
   arrivalTime  String         @db.VarChar(5)
   returnTime   String?        @db.VarChar(5)
+  /// Orario di partenza dal primo comune (proposto dall'app in base alla distanza,
+  /// modificabile dal conducente). Null per i viaggi creati prima di questo campo.
+  departureTime String?       @db.VarChar(5)
   seats        Int
   meetingPoint String?
   notes        String?
@@ -394,6 +397,8 @@ model TripStop {
   seriesId    String     @db.Uuid
   order       Int
   comuneIstat String     @db.Char(6)
+  /// Orario stimato di passaggio (per order 0 coincide con la partenza). Indicativo.
+  passTime    String?    @db.VarChar(5)
 
   series      TripSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   comune      Comune     @relation(fields: [comuneIstat], references: [istat])
@@ -450,6 +455,8 @@ model TripParticipant {
   /// true se la cancellazione è avvenuta oltre la scadenza.
   lateCancel     Boolean           @default(false)
   attended       Boolean?
+  /// Promemoria facoltativo "prima della salita" già inviato.
+  reminderSentAt DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 

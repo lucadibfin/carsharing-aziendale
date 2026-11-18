@@ -9,7 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { createTripSchema, type TripVisibility, WEEKDAY_LABELS } from '@fcs/shared';
+import { createTripSchema, estimatePassTimes, type RouteEstimateDto, type TripVisibility, WEEKDAY_LABELS } from '@fcs/shared';
 import { ApiService } from '../core/api.service';
 import { ReferenceStore } from '../core/reference.store';
 import { SessionStore } from '../core/session.store';
@@ -29,7 +29,7 @@ import { todayIso } from '../shared/dates';
       <form class="stack" (ngSubmit)="submit()">
         <mat-form-field>
           <mat-label>Sede di destinazione</mat-label>
-          <mat-select [(ngModel)]="siteId" name="siteId" required>
+          <mat-select [(ngModel)]="siteId" (ngModelChange)="scheduleEstimate()" name="siteId" required>
             @for (s of ref.sites(); track s.id) { <mat-option [value]="s.id">{{ s.name }}</mat-option> }
           </mat-select>
         </mat-form-field>
@@ -66,7 +66,7 @@ import { todayIso } from '../shared/dates';
         <div class="row">
           <mat-form-field class="grow">
             <mat-label>Arrivo in ufficio</mat-label>
-            <input matInput type="time" [(ngModel)]="arrivalTime" name="arrivalTime" required />
+            <input matInput type="time" [(ngModel)]="arrivalTime" (ngModelChange)="scheduleEstimate()" name="arrivalTime" required />
           </mat-form-field>
           <mat-form-field class="grow">
             <mat-label>Ripartenza</mat-label>
@@ -76,7 +76,7 @@ import { todayIso } from '../shared/dates';
         </div>
 
         <h2 class="section-title">Percorso</h2>
-        <app-comune-picker label="Comune di partenza" [required]="true" [(value)]="departure" />
+        <app-comune-picker label="Comune di partenza" [required]="true" [(value)]="departure" (valueChange)="scheduleEstimate()" />
         @for (v of via(); track $index; let i = $index) {
           <div class="row via">
             <app-comune-picker class="grow" [label]="'Comune di passaggio ' + (i + 1)" [value]="v" (valueChange)="setVia(i, $event)" />
@@ -87,12 +87,27 @@ import { todayIso } from '../shared/dates';
               <mat-icon svgIcon="delete" />
             </button>
           </div>
+          @if (passTimeFor(i); as t) { <p class="muted small pass">Passaggio stimato: circa {{ t }}</p> }
         }
         @if (via().length < 10) {
           <button mat-stroked-button type="button" (click)="addVia()">
             <mat-icon svgIcon="add_location_alt" />Aggiungi comune di passaggio
           </button>
         }
+        <mat-form-field>
+          <mat-label>Orario di partenza</mat-label>
+          <input matInput type="time" [(ngModel)]="departureTime" (ngModelChange)="departureEdited = true" name="departureTime" />
+          @if (estimate(); as e) {
+            <mat-hint>
+              Proposta in base alla distanza: {{ e.departureTime }}
+              @if (departureEdited && departureTime !== e.departureTime) {
+                · <button type="button" class="link-button" (click)="useSuggested()">usa questo orario</button>
+              }
+            </mat-hint>
+          } @else {
+            <mat-hint>Indica sede, comune di partenza e arrivo: l'app propone un orario</mat-hint>
+          }
+        </mat-form-field>
         <mat-form-field>
           <mat-label>Punto d'incontro (facoltativo)</mat-label>
           <input matInput [(ngModel)]="meetingPoint" name="meetingPoint" maxlength="200" />
@@ -127,6 +142,8 @@ import { todayIso } from '../shared/dates';
     .weekdays legend { font: var(--mat-sys-body-medium); color: var(--mat-sys-on-surface-variant); margin-bottom: var(--app-space-1); }
     .wrap { flex-wrap: wrap; gap: 0 var(--app-space-2); }
     .small { font-size: 0.85em; margin: 0; }
+    .pass { margin: calc(-1 * var(--app-space-3)) 0 var(--app-space-2) var(--app-space-4); }
+    .link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--app-color-link); text-decoration: underline; cursor: pointer; }
     .via app-comune-picker { flex: 1 1 auto; }
     mat-button-toggle-group { display: flex; }
     mat-button-toggle { flex: 1; }
@@ -156,10 +173,66 @@ export class TripNewPage implements OnInit {
   protected notes = '';
   protected readonly busy = signal(false);
 
+  /** Partenza proposta dall'app; il conducente può cambiarla (departureEdited). */
+  protected departureTime = '';
+  protected departureEdited = false;
+  protected readonly estimate = signal<RouteEstimateDto | null>(null);
+  /** Comuni per cui è stata calcolata la stima (partenza + passaggi compilati). */
+  private estimatedStops: string[] = [];
+  private estimateTimer: ReturnType<typeof setTimeout> | undefined;
+
   async ngOnInit(): Promise<void> {
     await this.ref.loadSites();
     this.siteId = this.session.me()?.siteId ?? null;
     this.departure = this.session.me()?.comuneIstat ?? null;
+    this.scheduleEstimate();
+  }
+
+  private stops(): string[] {
+    return [this.departure, ...this.via()].filter((s): s is string => Boolean(s));
+  }
+
+  /** Ricalcola la partenza proposta poco dopo l'ultima modifica di sede, arrivo o percorso. */
+  protected scheduleEstimate(): void {
+    clearTimeout(this.estimateTimer);
+    this.estimateTimer = setTimeout(() => void this.refreshEstimate(), 300);
+  }
+
+  private async refreshEstimate(): Promise<void> {
+    const [first, ...rest] = this.stops();
+    if (!this.siteId || !first || !/^\d{2}:\d{2}$/.test(this.arrivalTime)) {
+      this.estimate.set(null);
+      return;
+    }
+    const stops = [first, ...rest];
+    try {
+      const e = await this.api.routeEstimate({ siteId: this.siteId, arrivalTime: this.arrivalTime, departureComune: first, viaComuni: rest });
+      this.estimatedStops = stops;
+      this.estimate.set(e);
+      if (!this.departureEdited || !this.departureTime) {
+        this.departureTime = e.departureTime;
+        this.departureEdited = false;
+      }
+    } catch {
+      this.estimate.set(null);
+    }
+  }
+
+  protected useSuggested(): void {
+    const e = this.estimate();
+    if (!e) return;
+    this.departureTime = e.departureTime;
+    this.departureEdited = false;
+  }
+
+  /** Orario stimato di passaggio del comune di passaggio i (solo se la stima è aggiornata). */
+  protected passTimeFor(i: number): string | null {
+    const e = this.estimate();
+    const v = this.via()[i];
+    const stops = this.stops();
+    if (!e || !v || !this.departureTime || stops.join() !== this.estimatedStops.join() || this.departureTime >= this.arrivalTime) return null;
+    const times = estimatePassTimes(this.departureTime, this.arrivalTime, e.driveMinutes);
+    return times[stops.indexOf(v)] ?? null;
   }
 
   protected toggleDay(day: number, on: boolean): void {
@@ -171,9 +244,11 @@ export class TripNewPage implements OnInit {
   }
   protected setVia(i: number, istat: string | null): void {
     this.via.update((v) => v.map((x, j) => (j === i ? istat : x)));
+    this.scheduleEstimate();
   }
   protected removeVia(i: number): void {
     this.via.update((v) => v.filter((_, j) => j !== i));
+    this.scheduleEstimate();
   }
   protected move(i: number, d: number): void {
     this.via.update((v) => {
@@ -181,6 +256,7 @@ export class TripNewPage implements OnInit {
       [a[i], a[i + d]] = [a[i + d]!, a[i]!];
       return a;
     });
+    this.scheduleEstimate();
   }
 
   async submit(): Promise<void> {
@@ -198,6 +274,7 @@ export class TripNewPage implements OnInit {
       weekdays: this.recurring ? this.weekdays() : [],
       endDate: this.recurring && this.endDate ? this.endDate : null,
       arrivalTime: this.arrivalTime,
+      departureTime: this.departureTime || undefined,
       returnTime: this.returnTime || null,
       departureComune: this.departure,
       viaComuni: this.via().filter((v): v is string => Boolean(v)),

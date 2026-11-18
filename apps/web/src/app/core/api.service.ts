@@ -17,6 +17,8 @@ import type {
   DashboardQuery,
   DecideAbsenceReportInput,
   ExportQuery,
+  RouteEstimateDto,
+  RouteEstimateInput,
   GrantRoleInput,
   InvitationScope,
   PublishPolicyInput,
@@ -98,6 +100,7 @@ export class ApiService {
 
   // viaggi
   createTrip = (input: CreateTripInput) => this.post<TripDetailDto>('/trips', input);
+  routeEstimate = (input: RouteEstimateInput) => this.post<RouteEstimateDto>('/trips/estimate', input);
   searchTrips = (q: SearchTripsInput) => this.get<TripSummaryDto[]>('/trips/search', { ...q });
   myTrips = () => this.get<MyTripsDto>('/trips/mine');
   trip = (id: string) => this.get<TripDetailDto>(`/trips/${id}`);

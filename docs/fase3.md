@@ -27,11 +27,17 @@
 ## Promemoria (facoltativi)
 Arrivano solo a chi ha dato il consenso alle notifiche facoltative, e vanno al conducente e ai partecipanti confermati. Il job `trip-reminders` gira ogni 5 minuti e invia ogni promemoria una sola volta.
 - **Sera prima:** dalle 20:00 (parametro `reminderEveningHour`).
-- **Prima della partenza:** 60 minuti prima della partenza stimata (parametro `reminderBeforeDepartureMinutes`).
-  - L'app conosce solo l'orario di arrivo in ufficio, quindi la partenza si stima come: arrivo − tempo di guida dal comune di partenza alla sede.
-  - Il tempo di guida è la distanza stradale (o stimata) divisa per 45 km/h, arrotondata ai 5 minuti. Senza coordinate si ipotizzano 45 minuti.
-  - Esempio: Bergamo → Milano circa 55 km = 75 minuti; arrivo alle 08:30, promemoria alle 06:15.
-- Un viaggio creato dopo il momento del promemoria non lo riceve.
+- **Prima della salita:** 60 minuti prima (parametro `reminderBeforeDepartureMinutes`):
+  - per il conducente, prima dell'orario di partenza;
+  - per ogni passeggero, prima dell'orario stimato di passaggio dal suo comune di salita.
+- Un viaggio creato, o una partecipazione accettata, dopo il momento del promemoria non lo riceve.
+
+## Orario di partenza e orari di passaggio
+- **Partenza proposta:** nel modulo di proposta l'app calcola la partenza come arrivo in ufficio − tempo di guida dal comune di partenza alla sede, arrotondata per difetto ai 5 minuti. Il conducente può cambiarla, purché resti prima dell'arrivo.
+- **Tempo di guida:** distanza stradale (o stimata in linea d'aria) divisa per 45 km/h, arrotondata ai 5 minuti; senza coordinate si ipotizzano 45 minuti. Esempio: Bergamo → Milano circa 55 km = 75 minuti, quindi con arrivo alle 08:30 la partenza proposta è alle 07:15.
+- **Comuni di passaggio:** hanno un orario stimato ("circa 7:35"), ricavato dalla loro distanza dalla sede e adattato al tempo che il conducente si è dato tra partenza e arrivo. Gli orari si calcolano alla proposta e valgono per tutte le date di una serie.
+- **Dove compaiono:** nel modulo, nel dettaglio del viaggio, nella scelta del comune di salita e accanto ai partecipanti.
+- **Viaggi creati prima di questa funzione:** non hanno orari di passaggio; i promemoria usano la partenza stimata.
 
 ## Report per il PSCL (CSV ed Excel)
 Si scaricano dalla dashboard dell'area amministrativa ("Excel", "CSV"), con gli stessi filtri di sede e periodo. Gli admin di sede possono scaricare solo la propria sede, e ogni esportazione è registrata nell'audit log.

@@ -93,10 +93,10 @@ export class AdminSettingsPage implements OnInit {
     { key: 'reminderEveningHour', label: 'Promemoria della sera prima: dalle ore', min: 12, max: 23 },
     {
       key: 'reminderBeforeDepartureMinutes',
-      label: 'Promemoria prima della partenza (minuti)',
+      label: 'Promemoria prima della salita (minuti)',
       min: 15,
       max: 180,
-      hint: 'Partenza stimata: arrivo meno il tempo di guida dal comune di partenza',
+      hint: 'Conducente: prima della partenza; passeggeri: prima del passaggio dal loro comune',
     },
     { key: 'chatRetentionDays', label: 'Conservazione chat (giorni)', min: 1, max: 365 },
     { key: 'absenceReportRetentionMonths', label: 'Conservazione segnalazioni (mesi)', min: 1, max: 60 },

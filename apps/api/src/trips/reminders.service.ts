@@ -1,28 +1,26 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { Clock } from '../common/clock.js';
 import { PrismaService } from '../common/prisma.service.js';
-import { addDays, dateOnly, romeToUtc, todayInRome } from '../common/time.js';
+import { addDays, dateOnly, romeToUtc, todayInRome, toIsoDate } from '../common/time.js';
 import { JobQueue } from '../jobs/job-queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { SettingsService } from '../settings/settings.service.js';
-import { RoutingService } from '../stats/routing.service.js';
+import { DEFAULT_DRIVE_MINUTES, TravelTimeService } from './travel-time.service.js';
 
-/** Velocità media ipotizzata per stimare il tempo di guida dal comune di partenza alla sede. */
-export const REMINDER_AVG_SPEED_KMH = 45;
-/** Tempo di guida ipotizzato quando mancano le coordinate (minuti). */
-export const REMINDER_DEFAULT_DRIVE_MINUTES = 45;
-/** Oltre questo tempo di guida stimato non si cercano candidati (minuti). */
-const MAX_DRIVE_MINUTES = 240;
+/** Oltre questo anticipo rispetto all'arrivo non si cercano candidati (minuti). */
+const MAX_LEAD_MINUTES = 240;
 
 /**
- * Promemoria FACOLTATIVI (solo con il consenso alle notifiche facoltative),
- * per conducente e partecipanti confermati:
- * - la sera prima, dall'ora reminderEveningHour;
- * - prima della partenza: reminderBeforeDepartureMinutes prima della partenza
- *   stimata = orario di arrivo − tempo di guida dal comune di partenza alla sede
- *   (distanza tra comune e sede a REMINDER_AVG_SPEED_KMH, arrotondata ai 5 minuti).
- * Il job gira ogni 5 minuti; ogni promemoria si invia una sola volta per data.
- * Non si invia un promemoria per un viaggio creato dopo il momento previsto.
+ * Promemoria FACOLTATIVI (solo con il consenso alle notifiche facoltative):
+ * - la sera prima, dall'ora reminderEveningHour, a conducente e confermati;
+ * - prima della salita: reminderBeforeDepartureMinutes prima
+ *   - della partenza, per il conducente;
+ *   - dell'orario stimato di passaggio dal proprio comune di salita, per ogni
+ *     partecipante confermato.
+ *   Per i viaggi creati prima dell'orario di partenza, la partenza si stima con
+ *   il tempo di guida dal comune di partenza alla sede.
+ * Il job gira ogni 5 minuti; ogni promemoria si invia una sola volta per persona e
+ * data. Non si invia a chi si è unito (o per un viaggio creato) dopo il momento previsto.
  */
 @Injectable()
 export class RemindersService implements OnModuleInit {
@@ -30,7 +28,7 @@ export class RemindersService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
     private readonly settings: SettingsService,
-    private readonly routing: RoutingService,
+    private readonly travel: TravelTimeService,
     private readonly notifications: NotificationsService,
     private readonly queue: JobQueue,
   ) {}
@@ -41,14 +39,7 @@ export class RemindersService implements OnModuleInit {
   }
 
   async run(): Promise<{ evening: number; departure: number }> {
-    return { evening: await this.evening(), departure: await this.beforeDeparture() };
-  }
-
-  /** Minuti di guida stimati dal comune di partenza alla sede. */
-  async driveMinutes(departureComune: string | undefined, siteId: string): Promise<number> {
-    const d = departureComune ? await this.routing.comuneToSite(departureComune, siteId) : null;
-    if (!d) return REMINDER_DEFAULT_DRIVE_MINUTES;
-    return Math.max(5, Math.ceil(((d.km / REMINDER_AVG_SPEED_KMH) * 60) / 5) * 5);
+    return { evening: await this.evening(), departure: await this.beforeBoarding() };
   }
 
   private async evening(): Promise<number> {
@@ -63,52 +54,80 @@ export class RemindersService implements OnModuleInit {
     });
     let sent = 0;
     for (const t of trips) {
-      if (!(await this.claim(t.id, 'eveningReminderAt', now))) continue;
-      if (t.createdAt >= sendFrom) continue;
-      sent += await this.send(t.id, 'TRIP_REMINDER_EVENING');
+      const r = await this.prisma.trip.updateMany({ where: { id: t.id, eveningReminderAt: null }, data: { eveningReminderAt: now } });
+      if (r.count !== 1 || t.createdAt >= sendFrom) continue;
+      const trip = await this.prisma.trip.findUniqueOrThrow({
+        where: { id: t.id },
+        select: { series: { select: { driverId: true } }, participants: { where: { status: 'ACCEPTED' }, select: { userId: true } } },
+      });
+      const recipients = [trip.series.driverId, ...trip.participants.map((p) => p.userId)];
+      await this.notifications.notify(recipients, 'TRIP_REMINDER_EVENING', t.id);
+      sent += recipients.length;
     }
     return sent;
   }
 
-  private async beforeDeparture(): Promise<number> {
+  private async beforeBoarding(): Promise<number> {
     const now = this.clock.now();
-    const { reminderBeforeDepartureMinutes } = await this.settings.get();
-    const horizon = new Date(now.getTime() + (reminderBeforeDepartureMinutes + MAX_DRIVE_MINUTES) * 60_000);
+    const { reminderBeforeDepartureMinutes: before } = await this.settings.get();
+    const horizon = new Date(now.getTime() + (before + MAX_LEAD_MINUTES) * 60_000);
     const trips = await this.prisma.trip.findMany({
-      where: { status: 'SCHEDULED', departureReminderAt: null, arrivalAt: { gt: now, lte: horizon } },
+      where: {
+        status: 'SCHEDULED',
+        arrivalAt: { gt: now, lte: horizon },
+        OR: [{ departureReminderAt: null }, { participants: { some: { status: 'ACCEPTED', reminderSentAt: null } } }],
+      },
       select: {
         id: true,
         siteId: true,
+        date: true,
         arrivalAt: true,
         createdAt: true,
-        series: { select: { stops: { orderBy: { order: 'asc' }, take: 1, select: { comuneIstat: true } } } },
+        departureReminderAt: true,
+        series: {
+          select: {
+            driverId: true,
+            departureTime: true,
+            stops: { orderBy: { order: 'asc' }, select: { comuneIstat: true, passTime: true } },
+          },
+        },
+        participants: {
+          where: { status: 'ACCEPTED', reminderSentAt: null },
+          select: { id: true, userId: true, boardingComune: true, decidedAt: true, requestedAt: true },
+        },
       },
     });
     let sent = 0;
     for (const t of trips) {
-      const drive = await this.driveMinutes(t.series.stops[0]?.comuneIstat, t.siteId);
-      const remindAt = new Date(t.arrivalAt.getTime() - (drive + reminderBeforeDepartureMinutes) * 60_000);
-      if (now < remindAt) continue;
-      if (!(await this.claim(t.id, 'departureReminderAt', now))) continue;
-      if (t.createdAt >= remindAt) continue;
-      sent += await this.send(t.id, 'TRIP_REMINDER');
+      const date = toIsoDate(t.date);
+      const departureAt = t.series.departureTime
+        ? romeToUtc(date, t.series.departureTime)
+        : new Date(t.arrivalAt.getTime() - ((await this.legacyDrive(t.series.stops[0]?.comuneIstat, t.siteId)) * 60_000));
+      const due = (at: Date) => new Date(at.getTime() - before * 60_000);
+
+      // Conducente: prima della partenza.
+      if (!t.departureReminderAt && now >= due(departureAt)) {
+        const r = await this.prisma.trip.updateMany({ where: { id: t.id, departureReminderAt: null }, data: { departureReminderAt: now } });
+        if (r.count === 1 && t.createdAt < due(departureAt)) {
+          await this.notifications.notify([t.series.driverId], 'TRIP_REMINDER', t.id);
+          sent++;
+        }
+      }
+      // Partecipanti: prima del passaggio dal proprio comune di salita.
+      for (const p of t.participants) {
+        const pass = t.series.stops.find((s) => s.comuneIstat === p.boardingComune)?.passTime;
+        const boardAt = pass ? romeToUtc(date, pass) : departureAt;
+        if (now < due(boardAt)) continue;
+        const r = await this.prisma.tripParticipant.updateMany({ where: { id: p.id, reminderSentAt: null }, data: { reminderSentAt: now } });
+        if (r.count !== 1 || (p.decidedAt ?? p.requestedAt) >= due(boardAt)) continue;
+        await this.notifications.notify([p.userId], 'TRIP_REMINDER', t.id);
+        sent++;
+      }
     }
     return sent;
   }
 
-  /** Segna il promemoria come inviato; false se un'altra esecuzione l'ha già fatto. */
-  private async claim(tripId: string, field: 'eveningReminderAt' | 'departureReminderAt', now: Date): Promise<boolean> {
-    const r = await this.prisma.trip.updateMany({ where: { id: tripId, [field]: null }, data: { [field]: now } });
-    return r.count === 1;
-  }
-
-  private async send(tripId: string, type: 'TRIP_REMINDER_EVENING' | 'TRIP_REMINDER'): Promise<number> {
-    const trip = await this.prisma.trip.findUniqueOrThrow({
-      where: { id: tripId },
-      select: { series: { select: { driverId: true } }, participants: { where: { status: 'ACCEPTED' }, select: { userId: true } } },
-    });
-    const recipients = [trip.series.driverId, ...trip.participants.map((p) => p.userId)];
-    await this.notifications.notify(recipients, type, tripId);
-    return recipients.length;
+  private async legacyDrive(departureComune: string | undefined, siteId: string): Promise<number> {
+    return (departureComune ? await this.travel.driveMinutes(departureComune, siteId) : null) ?? DEFAULT_DRIVE_MINUTES;
   }
 }

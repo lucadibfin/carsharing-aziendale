@@ -108,6 +108,8 @@ export const createTripSchema = z
     /** Ultima data della serie (inclusa). Assente = senza scadenza, finchÃ© il conducente non la termina. */
     endDate: isoDate.nullable().optional(),
     arrivalTime: hhmm,
+    /** Partenza dal primo comune. Se assente si usa quella proposta dall'app in base alla distanza. */
+    departureTime: hhmm.optional(),
     returnTime: hhmm.nullable().optional(),
     departureComune: istatCode,
     viaComuni: z.array(istatCode).max(10).default([]),
@@ -115,6 +117,10 @@ export const createTripSchema = z
     seats: z.number().int().min(1).max(8),
     visibility: z.enum(TripVisibility),
     notes: trimmed(500).optional(),
+  })
+  .refine((t) => !t.departureTime || t.departureTime < t.arrivalTime, {
+    message: 'La partenza deve precedere l’arrivo in ufficio',
+    path: ['departureTime'],
   })
   .refine((t) => !t.returnTime || t.returnTime > t.arrivalTime, {
     message: 'Lâ€™orario di ripartenza deve essere successivo a quello di arrivo',
@@ -137,6 +143,15 @@ export const createTripSchema = z
     path: ['endDate'],
   });
 export type CreateTripInput = z.infer<typeof createTripSchema>;
+
+/** Stima dei tempi di percorrenza per il modulo di proposta. */
+export const routeEstimateSchema = z.object({
+  siteId: id,
+  arrivalTime: hhmm,
+  departureComune: istatCode,
+  viaComuni: z.array(istatCode).max(10).default([]),
+});
+export type RouteEstimateInput = z.infer<typeof routeEstimateSchema>;
 
 export const searchTripsSchema = z.object({
   siteId: id,
