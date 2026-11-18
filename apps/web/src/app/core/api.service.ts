@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type {
   AbsenceReportOptionsDto,
+  AppConfigDto,
   AdminAbsenceReportDto,
   AdminPolicyDto,
   AdminReportsQuery,
@@ -184,6 +185,10 @@ export class ApiService {
   adminPublishPolicy = (body: PublishPolicyInput) => this.post<AdminPolicyDto[]>('/admin/policies', body);
   adminAudit = (q: { from?: string; to?: string; action?: string; before?: string }) => this.get<AuditPageDto>('/admin/audit', q);
   adminVerifyAudit = () => this.post<AuditVerifyDto>('/admin/audit/verify');
+  adminResetDemo = () => this.post<void>('/admin/demo/reset');
+
+  // configurazione pubblica (anche prima del login)
+  appConfig = () => this.get<AppConfigDto>('/config');
 
   // push
   pushKey = () => this.get<{ publicKey: string; enabled: boolean }>('/push/public-key');

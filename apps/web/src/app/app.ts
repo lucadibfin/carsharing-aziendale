@@ -1,13 +1,18 @@
 import { Component, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AppConfigStore } from './core/app-config.store';
 import { SessionStore } from './core/session.store';
+import { DemoBannerComponent } from './shared/demo-banner.component';
 import { NoticeBannerComponent } from './shared/notice-banner.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatIconModule, NoticeBannerComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatIconModule, NoticeBannerComponent, DemoBannerComponent],
   template: `
+    @if (config.demo()) {
+      <app-demo-banner />
+    }
     @if (session.ready() && session.me()?.comuneNotice; as notice) {
       <app-notice-banner class="comune-notice" (closed)="session.dismissComuneNotice()">
         Il tuo comune {{ notice.from }} è ora <strong>{{ notice.to }}</strong>.
@@ -28,6 +33,8 @@ import { NoticeBannerComponent } from './shared/notice-banner.component';
     }
   `,
   styles: `
+    /* Il banner della demo occupa già l'area di sicurezza in alto. */
+    app-demo-banner + .comune-notice { padding-top: 6px; }
     .bottom-nav {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
       display: flex; justify-content: space-around;
@@ -46,6 +53,12 @@ import { NoticeBannerComponent } from './shared/notice-banner.component';
 })
 export class App {
   protected readonly session = inject(SessionStore);
+  protected readonly config = inject(AppConfigStore);
+
+  constructor() {
+    this.config.load();
+  }
+
   protected readonly nav = [
     { path: '/', icon: 'home', label: 'Home' },
     { path: '/cerca', icon: 'search', label: 'Cerca' },

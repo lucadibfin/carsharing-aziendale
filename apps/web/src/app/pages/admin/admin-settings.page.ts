@@ -2,11 +2,15 @@ import { Component, inject, type OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { FUEL_TYPE_LABELS, FUEL_UNITS, type FuelType, type Settings } from '@fcs/shared';
+import { Router } from '@angular/router';
 import { ApiService } from '../../core/api.service';
+import { AppConfigStore } from '../../core/app-config.store';
+import { SessionStore } from '../../core/session.store';
 import { ToastService } from '../../core/toast.service';
 
 type NumberKey = {
@@ -15,7 +19,7 @@ type NumberKey = {
 
 @Component({
   selector: 'app-admin-settings',
-  imports: [FormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule],
+  imports: [FormsModule, MatButtonModule, MatCardModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatSelectModule],
   template: `
     @if (s(); as s) {
       <h2 class="section-title">Viaggi e conservazione dei dati</h2>
@@ -69,15 +73,34 @@ type NumberKey = {
         <button mat-flat-button (click)="save()" [disabled]="busy()">Salva</button>
       </div>
     }
+    @if (config.demo()) {
+      <h2 class="section-title">Demo</h2>
+      <p class="muted">
+        Riporta la demo allo stato iniziale: utenti di prova, viaggi, chat, segnalazioni, sedi, testi legali e parametri
+        tornano quelli di partenza (con le date riferite a oggi). Tutti gli utenti, te compreso, dovranno accedere di nuovo.
+        L'audit log non si azzera.
+      </p>
+      <mat-checkbox [(ngModel)]="resetConfirmed">Ho capito, voglio ripristinare la demo</mat-checkbox>
+      <div class="actions">
+        <button mat-flat-button class="danger-btn" (click)="resetDemo()" [disabled]="!resetConfirmed || busy()" data-testid="demo-reset">
+          Riporta la demo allo stato iniziale
+        </button>
+      </div>
+    }
   `,
   styles: `
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--app-space-1) var(--app-space-3); }
     .num { width: 90px; font: inherit; padding: var(--app-space-1); }
+    .danger-btn { background: var(--mat-sys-error); color: var(--mat-sys-on-error); }
   `,
 })
 export class AdminSettingsPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly toast = inject(ToastService);
+  private readonly session = inject(SessionStore);
+  private readonly router = inject(Router);
+  protected readonly config = inject(AppConfigStore);
+  protected resetConfirmed = false;
   protected readonly s = signal<Settings | null>(null);
   protected readonly busy = signal(false);
   protected readonly fuelLabels = FUEL_TYPE_LABELS;
@@ -128,6 +151,22 @@ export class AdminSettingsPage implements OnInit {
       this.s.set(structuredClone(await this.api.adminSettings()));
     } catch (e) {
       this.toast.error(e);
+    }
+  }
+
+  async resetDemo(): Promise<void> {
+    this.busy.set(true);
+    try {
+      await this.api.adminResetDemo();
+      // Le sessioni sono state cancellate: si torna al login.
+      this.session.clear();
+      this.toast.info('Demo ripristinata: accedi di nuovo');
+      await this.router.navigateByUrl('/login');
+    } catch (e) {
+      this.toast.error(e);
+    } finally {
+      this.busy.set(false);
+      this.resetConfirmed = false;
     }
   }
 

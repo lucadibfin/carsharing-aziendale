@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import type { EmailStatusDto } from '@fcs/shared';
 import { ApiService } from '../core/api.service';
+import { AppConfigStore } from '../core/app-config.store';
 import { ToastService } from '../core/toast.service';
 
 /**
@@ -20,10 +21,18 @@ import { ToastService } from '../core/toast.service';
         <p>Email per le notifiche: <strong data-testid="verified-email">{{ s.email }}</strong> <span class="ok">✓ verificata</span></p>
         <button mat-stroked-button type="button" (click)="startEdit()">Cambia indirizzo</button>
       } @else if (s.pendingEmail) {
-        <p>
-          Abbiamo inviato un codice di {{ codeLength }} cifre a <strong>{{ s.pendingEmail }}</strong>.
-          Controlla anche la cartella spam. Il codice scade tra 15 minuti.
-        </p>
+        @if (demoCode()) {
+          <div class="demo-code" role="status">
+            <strong>Demo:</strong> nessuna email viene inviata. Il codice per <strong>{{ s.pendingEmail }}</strong> è
+            <strong class="code-value" data-testid="demo-code">{{ demoCode() }}</strong>.
+            Inseriscilo qui sotto per proseguire (scade tra 15 minuti).
+          </div>
+        } @else {
+          <p>
+            Abbiamo inviato un codice di {{ codeLength }} cifre a <strong>{{ s.pendingEmail }}</strong>.
+            Controlla anche la cartella spam. Il codice scade tra 15 minuti.
+          </p>
+        }
         @if (s.email) {
           <p class="muted small">Fino alla conferma le notifiche continuano ad arrivare a {{ s.email }}.</p>
         }
@@ -42,6 +51,9 @@ import { ToastService } from '../core/toast.service';
           <button mat-button type="button" (click)="cancel()" [disabled]="busy()">Usa un altro indirizzo</button>
         </div>
       } @else {
+        @if (config.demo()) {
+          <p class="muted small">Demo: puoi usare un indirizzo inventato (es. nome&#64;example.com); non riceverà nulla.</p>
+        }
         <p class="muted small">
           Può essere anche un indirizzo personale. Lo usiamo solo per le notifiche importanti dell'app, come un viaggio annullato o una richiesta accettata (mai per il login),
           non è visibile ai colleghi e puoi cambiarlo quando vuoi.
@@ -65,6 +77,11 @@ import { ToastService } from '../core/toast.service';
     .code { width: 140px; }
     .ok { color: var(--mat-sys-primary); }
     .small { font-size: 0.85em; }
+    .demo-code {
+      padding: var(--app-space-3); margin-bottom: var(--app-space-3); border-radius: var(--app-radius-md, 12px);
+      background: var(--mat-sys-tertiary-container); color: var(--mat-sys-on-tertiary-container);
+    }
+    .code-value { font: var(--mat-sys-title-medium); letter-spacing: 0.15em; }
   `,
 })
 export class EmailVerifyComponent implements OnDestroy {
@@ -75,6 +92,9 @@ export class EmailVerifyComponent implements OnDestroy {
   /** Nuovo stato dopo ogni operazione (il genitore lo memorizza). */
   readonly changed = output<EmailStatusDto>();
 
+  protected readonly config = inject(AppConfigStore);
+  /** Demo: codice restituito dall'API al posto dell'email. */
+  protected readonly demoCode = signal('');
   protected readonly codeLength = 6;
   protected readonly busy = signal(false);
   protected readonly editing = signal(false);
@@ -102,12 +122,17 @@ export class EmailVerifyComponent implements OnDestroy {
       const s = await this.api.requestEmailCode(this.email);
       this.code = '';
       this.editing.set(false);
+      this.demoCode.set(s.demoCode ?? '');
       this.changed.emit(s);
     });
   }
 
   protected resend(): Promise<void> {
-    return this.run(async () => this.changed.emit(await this.api.requestEmailCode(this.status().pendingEmail!)));
+    return this.run(async () => {
+      const s = await this.api.requestEmailCode(this.status().pendingEmail!);
+      this.demoCode.set(s.demoCode ?? '');
+      this.changed.emit(s);
+    });
   }
 
   protected confirm(): Promise<void> {
