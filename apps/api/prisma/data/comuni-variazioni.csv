@@ -1,0 +1,7 @@
+# Variazioni dei comuni successive alla data dei confini ISTAT usati per le coordinate (vedi docs/distanze.md).
+# FUSIONE: comune nuovo, punto interno all'unione dei territori d'origine.
+# INCORPORAZIONE: codice = comune che incorpora, origini = incorporante + incorporati; il seed sposta profili e viaggi.
+# APPROSSIMATO: punto del comune d'origine (stima).
+codice;nome;tipo;origini;rilevato_al;nota
+024129;Castegnero Nanto;FUSIONE;024027+024071;17/11/2026;fusione di Castegnero e Nanto (riconosciuta dal nome)
+018094;Montalto Pavese;INCORPORAZIONE;018082+018094;17/11/2026;incorporazione di Lirio

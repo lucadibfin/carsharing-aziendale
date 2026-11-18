@@ -1,5 +1,7 @@
 # Fonte: ISTAT - Confini delle unità amministrative a fini statistici al 01/01/2026 (Com01012026_g_WGS84.shp). Licenza CC BY 4.0.
 # Punto interno al territorio comunale (point on surface), WGS84, calcolato con apps/api/scripts/istat/comuni-punti.mjs
+# 024129 Castegnero Nanto: punto interno all'unione dei territori di 024027+024071, comune successivo alla data dei confini
+# 018094 Montalto Pavese: punto interno all'unione dei territori di 018082+018094, incorporazione successiva alla data dei confini
 istat;lat;lon
 001001;45.365481;7.777708
 001002;44.922007;7.480484
@@ -2369,7 +2371,7 @@ istat;lat;lon
 018091;45.099131;9.035891
 018092;45.125549;9.205219
 018093;45.179692;9.440523
-018094;44.970562;9.215158
+018094;44.974993;9.215275
 018095;45.004930;9.089688
 018096;44.975923;9.274885
 018097;45.027105;9.293907
@@ -3137,6 +3139,7 @@ istat;lat;lon
 024126;45.720551;11.614319
 024127;45.804744;11.595943
 024128;45.555639;11.431900
+024129;45.436701;11.590418
 025001;46.308565;12.056525
 025003;46.404403;12.041278
 025004;45.974481;11.753368
