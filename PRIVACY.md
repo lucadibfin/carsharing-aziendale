@@ -51,7 +51,7 @@ La classificazione si trova in `apps/api/src/notifications/notifications.service
 | Viaggi, partecipazioni, gruppi fissi | PostgreSQL | Cancellati 12 mesi dopo la data del viaggio (configurabile); restano i fatti anonimi |
 | Report esportati (CSV/Excel) | File scaricati dagli admin | Solo aggregati per sede e mese; sotto la soglia minima (5 viaggi completati, configurabile) i valori non si pubblicano; ogni esportazione è nell'audit log |
 | Audit log | PostgreSQL, `AuditLog` | Append-only (trigger che vietano modifiche e cancellazioni) con catena di hash; solo UUID e codici di azione, nessun dato in chiaro. Le righe oltre 24 mesi (configurabile, minimo 6) si cancellano solo tramite la funzione `audit_log_purge`, che lascia un'ancora per verificare la catena |
-| Log applicativi | stdout del processo | Senza corpo delle richieste, cookie, query string, nomi, indirizzi email né codici di verifica; utenti solo come pseudonimo HMAC |
+| Log applicativi | stdout del processo | Senza corpo delle richieste, cookie, query string, nomi, indirizzi email né codici di verifica; utenti solo come pseudonimo HMAC. Conservati 6 mesi dal sistema che li raccoglie ([docs/produzione.md](docs/produzione.md)) |
 | Log di accesso del reverse proxy | Da definire con l'installazione | Raccomandato: senza query string né cookie, IP troncato |
 
 **Password**: mai salvate, loggate o incluse in errori. Vengono inoltrate solo all'API aziendale via HTTPS (redirect disabilitati, nessun retry automatico). I test automatici verificano che non compaiano in log e risposte (`apps/api/test/auth.spec.ts`).

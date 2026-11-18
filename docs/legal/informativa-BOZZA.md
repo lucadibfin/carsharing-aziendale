@@ -90,7 +90,7 @@ I dati non sono diffusi, non sono ceduti a terzi per fini commerciali e **non so
 | Viaggi conclusi, partecipazioni e gruppi fissi | 12 mesi dalla data del viaggio [DA CONFERMARE]; dopo restano solo statistiche anonime |
 | Inviti scaduti, revocati o già usati | 30 giorni |
 | Sessioni di accesso | Cancellate alla scadenza |
-| Log tecnici | [DA COMPILARE, proposta: 6 mesi] |
+| Log tecnici (senza dati personali in chiaro) | 6 mesi |
 | Registro delle azioni amministrative (audit) | 24 mesi [DA CONFERMARE]. Contiene solo identificativi tecnici e codici di azione, senza nomi o contenuti |
 | Accettazioni di informativa e termini | Per la durata dell'account, a prova dell'avvenuta presa visione |
 

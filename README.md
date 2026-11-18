@@ -37,6 +37,8 @@ Utenti di prova, dati di esempio e giro completo: vedi la sezione [Test in local
 
 **Marchio (white label)**: grafica, nome, email e dati legali arrivano da `brands/<BRAND>/` (default: `default`). Per provare il marchio Fincons: `$env:BRAND='fincons'; npm run dev:web` e `BRAND=fincons` in `apps/api/.env`. Guida di stile (solo sviluppo): <http://localhost:4200/dev/stile>. Nuovo cliente: [docs/nuovo-marchio.md](docs/nuovo-marchio.md); analisi del marchio Fincons: [docs/brand-fincons.md](docs/brand-fincons.md). Dopo l'aggiornamento che ha introdotto i marchi, rilanciare `npm run db:seed` per caricare i testi legali con i segnaposto (in sviluppo la v1 si riallinea ai file).
 
+**Server di produzione**: log, permessi del database e job notturni in [docs/produzione.md](docs/produzione.md).
+
 **Test su iPhone e Android reali** (installazione PWA e push in HTTPS sulla rete locale): vedi [docs/test-dispositivi.md](docs/test-dispositivi.md), che contiene anche la checklist per ciascun dispositivo.
 
 ## Test in locale

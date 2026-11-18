@@ -70,7 +70,7 @@ Sono descritte nell'informativa (par. 5 e 5-bis), con le note per il DPO. In sin
 | Inviti scaduti, revocati, rifiutati o usati | 30 giorni (parametro `inviteRetentionDays`) | Job alle 03:45 |
 | Sessioni scadute; contatori anti brute-force inattivi da 48 ore | Alla scadenza | Job alle 03:45 |
 | Audit log | 24 mesi (parametro `auditRetentionMonths`, minimo 6 imposto dal database) [DA CONFERMARE]. Le righe si cancellano solo con la funzione `audit_log_purge` (SECURITY DEFINER): in produzione l'utente DB dell'app ha INSERT e SELECT sulla tabella ed EXECUTE sulla funzione. Si cancella un blocco contiguo dall'inizio e si registra l'hash dell'ultima riga eliminata, da cui riparte la verifica della catena | Job alle 03:45 |
-| Log tecnici dell'applicazione | [DA DEFINIRE, proposta 6 mesi]: escono su stdout senza dati personali in chiaro; la conservazione è a carico del sistema che li raccoglie (journald, rotazione dei file) | Infrastruttura |
+| Log tecnici dell'applicazione | **6 mesi**: escono su stdout senza dati personali in chiaro; la conservazione è a carico del sistema che li raccoglie (journald, rotazione dei file; vedi [docs/produzione.md](../produzione.md)) | Infrastruttura |
 
 Ogni esecuzione del job registra nell'audit log (`RETENTION_RUN`) solo i conteggi delle righe cancellate.
 
@@ -244,13 +244,14 @@ L'app funziona oggi così. Se il DPO decide diversamente, la modifica è puntual
 | A11 | **Ex dipendenti**: **30 giorni** tra disattivazione e cancellazione definitiva (parametro) | Permette di correggere errori del sistema aziendale o riassunzioni; nel frattempo email, sessioni e push sono già cancellate | Par. 4 |
 | A12 | **Audit log**: conserva l'**UUID** dell'account anche dopo la cancellazione, senza altri dati che consentano di risalire alla persona | Integrità del registro (catena di hash) e accountability | Par. 4 e 8 |
 | A13 | **Ricerca utenti degli admin** (assegnazione ruoli): registrata senza il testo cercato | Evita nomi nell'audit log | Par. 6 |
+| A14 | **"Si è liberato un posto"** (lista d'attesa) classificata come notifica **essenziale**: push ed email senza consenso | L'utente si è messo in lista d'attesa proprio per ricevere questo avviso: è il servizio richiesto (art. 6.1.b). Alternativa: notifica facoltativa, che però chi non ha dato il consenso non riceverebbe | Informativa par. 5-bis; `NOTIFICATION_CATEGORY` |
 
 ### B. Punti aperti da decidere o compilare
 | # | Punto |
 |---|---|
 | B1 | **Servizi push dei browser** (Google, Apple, Mozilla): contenuto cifrato e generico, ma l'endpoint del dispositivo è un identificativo, con possibile trasferimento extra UE (informativa par. 6, "[DA VERIFICARE]") |
-| B2 | **Conservazione**: audit log (24 mesi), viaggi conclusi (12 mesi), inviti (30 giorni) sono i valori predefiniti, già applicati dal job notturno e modificabili dagli admin. Da confermare; per i log tecnici (proposta 6 mesi) va configurata l'infrastruttura |
-| B3 | **Soglia minima** per i report esportati (CSV/Excel, una riga per sede e mese): sotto 5 viaggi completati (parametro `exportMinTrips`) passeggeri, km, emissioni, carburante e spesa non si pubblicano; restano i conteggi dei viaggi. Niente righe di totale, che permetterebbero di ricavare i valori nascosti. Da confermare il valore |
+| B2 | **Conservazione**: audit log (24 mesi), viaggi conclusi (12 mesi), inviti (30 giorni) sono i valori predefiniti, già applicati dal job notturno e modificabili dagli admin. Da confermare. Log tecnici: **6 mesi** (decisione del titolare), da configurare sul server ([docs/produzione.md](../produzione.md)) |
+| B3 | **Soglia minima** per i report esportati (CSV/Excel, una riga per sede e mese): sotto 5 viaggi completati (parametro `exportMinTrips`) passeggeri, km, emissioni, carburante e spesa non si pubblicano; restano i conteggi dei viaggi. Niente righe di totale, che permetterebbero di ricavare i valori nascosti. Valore **confermato dal titolare**, da validare |
 | B4 | **Dati del Titolare e del DPO**; nomina dei responsabili del trattamento (gestore della VM, servizio SMTP) |
 | B5 | **DPIA**: consigliata (par. 11) |
 | B6 | Termini d'uso: assicurazione, rimborso spese tra colleghi, misure di moderazione (parti "[DA COMPILARE]") |

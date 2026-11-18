@@ -61,6 +61,6 @@ Altri dati hanno già un job dedicato dalla Fase 2:
 - verifiche email non completate: 24 ore, alle 03:20;
 - ex dipendenti: dopo 30 giorni, alle 04:00.
 
-I log tecnici escono su stdout senza dati personali in chiaro. La loro conservazione si configura sull'infrastruttura.
+I log tecnici escono su stdout senza dati personali in chiaro e si conservano 6 mesi, impostati sul server ([produzione.md](produzione.md)).
 
 **Audit log in produzione.** L'utente DB dell'applicazione deve avere, sulla tabella `AuditLog`, solo `INSERT` e `SELECT`, più `EXECUTE` sulla funzione `audit_log_purge`. La funzione è di proprietà dell'utente che esegue le migrazioni.
