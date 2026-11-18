@@ -20,7 +20,9 @@ const MAX_LEAD_MINUTES = 240;
  *   Per i viaggi creati prima dell'orario di partenza, la partenza si stima con
  *   il tempo di guida dal comune di partenza alla sede.
  * Il job gira ogni 5 minuti; ogni promemoria si invia una sola volta per persona e
- * data. Non si invia a chi si è unito (o per un viaggio creato) dopo il momento previsto.
+ * data. Non si invia a chi si è unito (o per un viaggio creato) dopo il momento previsto,
+ * né quando la partenza o la salita è già passata (es. job recuperato dopo una pausa
+ * dell'app): in quel caso il promemoria si considera gestito e non parte più.
  */
 @Injectable()
 export class RemindersService implements OnModuleInit {
@@ -108,7 +110,7 @@ export class RemindersService implements OnModuleInit {
       // Conducente: prima della partenza.
       if (!t.departureReminderAt && now >= due(departureAt)) {
         const r = await this.prisma.trip.updateMany({ where: { id: t.id, departureReminderAt: null }, data: { departureReminderAt: now } });
-        if (r.count === 1 && t.createdAt < due(departureAt)) {
+        if (r.count === 1 && t.createdAt < due(departureAt) && now <= departureAt) {
           await this.notifications.notify([t.series.driverId], 'TRIP_REMINDER', t.id);
           sent++;
         }
@@ -119,7 +121,7 @@ export class RemindersService implements OnModuleInit {
         const boardAt = pass ? romeToUtc(date, pass) : departureAt;
         if (now < due(boardAt)) continue;
         const r = await this.prisma.tripParticipant.updateMany({ where: { id: p.id, reminderSentAt: null }, data: { reminderSentAt: now } });
-        if (r.count !== 1 || (p.decidedAt ?? p.requestedAt) >= due(boardAt)) continue;
+        if (r.count !== 1 || (p.decidedAt ?? p.requestedAt) >= due(boardAt) || now > boardAt) continue;
         await this.notifications.notify([p.userId], 'TRIP_REMINDER', t.id);
         sent++;
       }

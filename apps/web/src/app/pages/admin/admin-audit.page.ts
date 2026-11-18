@@ -26,6 +26,7 @@ const ACTIONS: Record<string, string> = {
   ADMIN_POLICY_PUBLISH: 'Pubblicazione testo legale',
   ADMIN_SITE_CREATE: 'Creazione sede',
   ADMIN_SITE_UPDATE: 'Modifica sede',
+  DEMO_RESET: 'Ripristino della demo',
   USER_DATA_EXPORT: 'Esportazione dei propri dati',
   USER_ACCOUNT_DELETED: 'Cancellazione account (dall’utente)',
   USER_DEACTIVATED: 'Disattivazione ex dipendente',

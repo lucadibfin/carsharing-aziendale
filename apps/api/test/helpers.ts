@@ -11,6 +11,7 @@ import { NotificationsService } from '../src/notifications/notifications.service
 import { MailService, type MailMessage } from '../src/notifications/mail.service.js';
 import { PushService } from '../src/notifications/push.service.js';
 import { configureApp } from '../src/security.js';
+import { serveWeb } from '../src/web-static.js';
 import { MOCK_PASSWORD } from '../src/auth/mock-identity.provider.js';
 
 export const TEST_ENV: Record<string, string> = {
@@ -30,6 +31,8 @@ export const TEST_ENV: Record<string, string> = {
   EMPLOYEE_CHECK_MODE: 'session-expiry',
   OSRM_URL: '',
   LOG_LEVEL: 'info',
+  DEMO_MODE: 'false',
+  WEB_DIST_DIR: '',
 };
 
 /** Orologio controllabile: di default lunedì 16/11/2026 alle 08:00 (ora di Roma). */
@@ -59,7 +62,9 @@ export async function createTestApp(envOverrides: Record<string, string> = {}): 
     .useValue(clock)
     .compile();
   const app = moduleRef.createNestApplication({ bodyParser: false, logger: false });
-  configureApp(app, loadEnv());
+  const env = loadEnv();
+  configureApp(app, env);
+  serveWeb(app, env);
   await app.init();
   const prisma = app.get(PrismaService);
   const notify = vi.spyOn(app.get(NotificationsService), 'notify');

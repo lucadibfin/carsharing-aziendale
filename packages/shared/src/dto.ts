@@ -55,6 +55,27 @@ export interface EmailStatusDto {
   pendingExpiresAt: string | null;
   /** Da quando si può chiedere un nuovo codice. */
   resendAvailableAt: string | null;
+  /**
+   * Solo in modalità demo e solo nella risposta alla richiesta del codice:
+   * il codice, mostrato a schermo al posto dell'email (che non viene inviata).
+   */
+  demoCode?: string;
+}
+
+/** Utenza di prova della demo (password uguale per tutte, vedi docs/demo.md). */
+export interface DemoAccountDto {
+  username: string;
+  label: string;
+}
+
+/** Configurazione pubblica dell'app, letta dal frontend all'avvio (anche prima del login). */
+export interface AppConfigDto {
+  /** Demo pubblica con dati fittizi (DEMO_MODE). */
+  demo: boolean;
+  /** Utenze di prova da proporre nella pagina di login (solo in demo). */
+  demoAccounts: DemoAccountDto[];
+  /** Password delle utenze di prova (solo in demo). */
+  demoPassword: string | null;
 }
 
 export interface ProfileDto {

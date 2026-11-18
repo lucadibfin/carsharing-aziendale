@@ -23,6 +23,7 @@ export const AUDIT_ACTIONS = [
   'ADMIN_POLICY_PUBLISH',
   'ADMIN_SITE_CREATE',
   'ADMIN_SITE_UPDATE',
+  'DEMO_RESET',
   // diritti dell'interessato e ciclo di vita dell'account
   'USER_DATA_EXPORT',
   'USER_ACCOUNT_DELETED',

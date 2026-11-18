@@ -7,6 +7,7 @@ import { OnboardingGuard, SessionGuard } from './auth/guards.js';
 import { ChatModule } from './chat/chat.module.js';
 import { AllExceptionsFilter } from './common/all-exceptions.filter.js';
 import { CommonModule } from './common/common.module.js';
+import { DemoModule } from './demo/demo.module.js';
 import { ConfigModule } from './config/config.module.js';
 import { loadEnv } from './config/env.js';
 import { loggerOptions } from './logging.js';
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module.js';
     ChatModule,
     AdminModule,
     RetentionModule,
+    DemoModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

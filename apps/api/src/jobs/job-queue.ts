@@ -61,8 +61,11 @@ export class JobQueue implements OnApplicationBootstrap, OnModuleDestroy {
         for (const job of jobs) await handler(job.data);
       });
     }
+    // missed 'once': un'esecuzione persa mentre l'app era ferma (riavvio, pausa
+    // della demo su Render) viene recuperata una sola volta alla ripartenza. Tutti
+    // i job pianificati leggono lo stato attuale del DB, quindi è sicuro.
     for (const s of this.schedules) {
-      await boss.schedule(s.name, s.cron, null, { tz: 'Europe/Rome' });
+      await boss.schedule(s.name, s.cron, null, { tz: 'Europe/Rome', missed: 'once' });
     }
     this.boss = boss;
     this.logger.log(`coda avviata (${this.handlers.size} tipi di job)`);

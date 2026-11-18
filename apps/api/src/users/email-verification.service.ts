@@ -7,7 +7,8 @@ import { AppException } from '../common/errors.js';
 import { PrismaService } from '../common/prisma.service.js';
 import { JobQueue } from '../jobs/job-queue.js';
 import { MailDeliveryError, MailService } from '../notifications/mail.service.js';
-import { BRAND } from '../config/config.module.js';
+import { BRAND, ENV } from '../config/config.module.js';
+import type { Env } from '../config/env.js';
 import type { BrandConfig } from '@fcs/brand';
 
 /** Validità del codice. */
@@ -36,6 +37,7 @@ export class EmailVerificationService implements OnModuleInit {
     private readonly clock: Clock,
     private readonly queue: JobQueue,
     @Inject(BRAND) private readonly brand: BrandConfig,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   onModuleInit(): void {
@@ -93,6 +95,9 @@ export class EmailVerificationService implements OnModuleInit {
       lastSentAt: now,
     };
     await this.prisma.emailVerification.upsert({ where: { userId }, create: { userId, ...data }, update: data });
+
+    // Demo pubblica: nessuna email viene inviata, il codice compare a schermo.
+    if (this.env.DEMO_MODE) return { ...(await this.status(userId)), demoCode: code };
 
     try {
       await this.mail.send({

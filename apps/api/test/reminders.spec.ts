@@ -106,6 +106,22 @@ describe('Promemoria facoltativi', () => {
     expect(calls('TRIP_REMINDER_EVENING')).toEqual([]);
     expect((await ctx.prisma.trip.findUniqueOrThrow({ where: { id: late.id } })).eveningReminderAt).not.toBeNull();
   });
+
+  it('dopo una pausa dell’app: niente promemoria serali del giorno prima né promemoria di salite già passate', async () => {
+    const trip = await tripTomorrow();
+    const t = (await driver.get(`/trips/${trip.id}`)).body as TripDetailDto;
+    const monza = t.stops.find((s) => s.comuneIstat === COMUNI.MONZA)!.passTime!;
+    // L'app riparte la mattina del viaggio, dopo la salita a Monza ma prima dell'arrivo.
+    ctx.clock.set(new Date(romeToUtc('2026-11-17', monza).getTime() + 60_000).toISOString());
+    const r = await reminders.run();
+    expect(r).toEqual({ evening: 0, departure: 0 });
+    expect(calls('TRIP_REMINDER')).toEqual([]);
+    expect(calls('TRIP_REMINDER_EVENING')).toEqual([]);
+    // Segnati come gestiti: non partono nemmeno ai giri successivi.
+    const parts = await ctx.prisma.tripParticipant.findMany({ where: { tripId: trip.id, status: 'ACCEPTED' } });
+    expect(parts.every((p) => p.reminderSentAt !== null)).toBe(true);
+    expect((await ctx.prisma.trip.findUniqueOrThrow({ where: { id: trip.id } })).departureReminderAt).not.toBeNull();
+  });
 });
 
 describe('Orario di partenza e orari di passaggio', () => {

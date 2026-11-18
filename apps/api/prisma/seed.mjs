@@ -1,5 +1,5 @@
 // Seed idempotente: comuni ISTAT, testi legali v1 (bozze), parametri di default
-// e, solo fuori produzione, alcune sedi di esempio.
+// e, solo fuori produzione o in modalità demo (DEMO_MODE), alcune sedi di esempio.
 // Uso: npm run db:seed -w api
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -110,8 +110,9 @@ try {
     );
   }
 
-  // --- Sedi di esempio (solo sviluppo) ---
-  if (process.env.NODE_ENV !== 'production') {
+  // --- Sedi di esempio (solo sviluppo e demo; elenco uguale a DEMO_SITES in src/demo/demo-data.service.ts) ---
+  const demoMode = ['true', '1'].includes(process.env.DEMO_MODE ?? '');
+  if (process.env.NODE_ENV !== 'production' || demoMode) {
     const sites = [
       ['Sede di Milano', 'Via di Esempio 1, Milano', '015146'],
       ['Sede di Roma', 'Via di Esempio 2, Roma', '058091'],
@@ -124,7 +125,7 @@ try {
         [name, address, istat],
       );
     }
-    console.log('Sedi di esempio create (solo sviluppo)');
+    console.log(demoMode ? 'Sedi di esempio create (demo)' : 'Sedi di esempio create (solo sviluppo)');
 
     // Ripiego per lo sviluppo finché non c'è comuni-coordinate.csv: coordinate
     // approssimative di alcuni comuni. Non sovrascrivono quelle già presenti.
