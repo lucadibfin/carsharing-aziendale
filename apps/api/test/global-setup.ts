@@ -23,7 +23,8 @@ export default async function setup(project: TestProject) {
     persistent: false,
     authMethod: 'scram-sha-256',
     initdbFlags: ['--encoding=UTF8', '--locale=C'],
-    postgresFlags: ['-c', 'listen_addresses=localhost', '-c', 'fsync=off'],
+    // io_method=sync: niente processi io_worker (PostgreSQL 18), che su Windows possono restare orfani.
+    postgresFlags: ['-c', 'listen_addresses=localhost', '-c', 'fsync=off', '-c', 'io_method=sync'],
     onLog: () => {},
   });
   await pg.initialise();
