@@ -35,6 +35,12 @@ describe('modalità demo', () => {
     expect(() => loadEnv({ ...demo, DATA_ENCRYPTION_KEYS: 'x' })).toThrow(/DATA_ENCRYPTION_KEYS/);
   });
 
+  it('senza APP_ORIGIN usa l’indirizzo pubblico fornito da Render', () => {
+    const { APP_ORIGIN: _, ...rest } = demo;
+    expect(loadEnv({ ...rest, RENDER_EXTERNAL_URL: 'https://fcs-demo.onrender.com' }).APP_ORIGIN).toBe('https://fcs-demo.onrender.com');
+    expect(loadEnv({ ...demo, RENDER_EXTERNAL_URL: 'https://altro.onrender.com' }).APP_ORIGIN).toBe('https://demo.example.invalid');
+  });
+
   it('fuori demo la produzione continua a rifiutare il login di prova', () => {
     expect(() => loadEnv({ ...demo, DEMO_MODE: 'false', AUTH_PROVIDER: 'mock' })).toThrow(/AUTH_PROVIDER/);
   });

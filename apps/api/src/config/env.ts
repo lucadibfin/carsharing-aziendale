@@ -164,7 +164,11 @@ type ParsedEnv = z.infer<typeof envSchema>;
 export type Env = Omit<ParsedEnv, 'MAIL_TRANSPORT'> & { MAIL_TRANSPORT: 'smtp' | 'outbox' | 'disabled' };
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const r = envSchema.safeParse(source);
+  // Su Render l'indirizzo pubblico del servizio arriva in RENDER_EXTERNAL_URL: se
+  // APP_ORIGIN non è impostata si usa quello (docs/demo.md).
+  const r = envSchema.safeParse(
+    !source['APP_ORIGIN'] && source['RENDER_EXTERNAL_URL'] ? { ...source, APP_ORIGIN: source['RENDER_EXTERNAL_URL'] } : source,
+  );
   if (!r.success) {
     // Si riportano solo i nomi delle variabili, mai i valori (potrebbero essere segreti).
     const problems = r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n  ');

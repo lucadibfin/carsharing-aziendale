@@ -39,6 +39,8 @@ Utenti di prova, dati di esempio e giro completo: vedi la sezione [Test in local
 
 **Server di produzione**: log, permessi del database e job notturni in [docs/produzione.md](docs/produzione.md).
 
+**Demo pubblica con dati fittizi** (Render + Neon, piani gratuiti, `DEMO_MODE=true`): guida passo passo in [docs/demo.md](docs/demo.md).
+
 **Test su iPhone e Android reali** (installazione PWA e push in HTTPS sulla rete locale): vedi [docs/test-dispositivi.md](docs/test-dispositivi.md), che contiene anche la checklist per ciascun dispositivo.
 
 ## Test in locale
@@ -109,9 +111,9 @@ INITIAL_GLOBAL_ADMIN=admin
 **Admin di sede.** `npm run db:demo` rende `giuseppe.verdi` admin della Sede di Milano. Senza i dati di esempio: login come `admin`, poi area admin → Ruoli → cerca "Verdi" → Admin di sede → Sede di Milano.
 
 ### Dati di esempio (`npm run db:demo`)
-Lo script è solo per lo sviluppo: rifiuta di partire con `NODE_ENV=production` o con il login aziendale. Il codice è in `apps/api/src/dev/demo-data.ts`.
+Lo script è per lo sviluppo e per la demo pubblica ([docs/demo.md](docs/demo.md)): rifiuta di partire in produzione reale o con il login aziendale. La logica è in `apps/api/src/demo/demo-data.service.ts`; in modalità demo (`DEMO_MODE=true`) la stessa routine carica i dati al primo avvio e si rilancia da Area admin → Parametri → Demo.
 
-**Cosa cancella.** Svuota utenti, viaggi, chat, segnalazioni e statistiche del database di sviluppo. Restano comuni, sedi, testi legali, parametri e audit log.
+**Cosa cancella.** Svuota utenti, viaggi, chat, segnalazioni, statistiche e parametri (tornano ai default). Le sedi e i testi legali tornano quelli iniziali (le tre sedi di esempio e la v1). Restano comuni e audit log.
 
 **Cosa ricrea.** Le date sono **relative al giorno in cui lo si lancia**:
 - 5 viaggi **conclusi** di Mario nelle ultime 5 settimane, un viaggio privato concluso di Laura e un viaggio annullato. Popolano le statistiche personali e la dashboard admin, con statistiche calcolate dagli stessi servizi dell'app;

@@ -19,6 +19,14 @@ Documento tecnico da mantenere aggiornato a ogni modifica. **Regola:** nessun se
 | **Servizi push dei browser** (Google FCM per Chrome/Android, Apple per Safari/iOS, Mozilla per Firefox) | Notifiche push, solo per chi le attiva sul dispositivo | Payload **cifrato end-to-end** (RFC 8291) con un testo generico e un link interno; endpoint del dispositivo | Testi dei messaggi, nomi, dati personali | Dipende dal fornitore del browser: **da valutare con il DPO** (l'endpoint del dispositivo è un identificativo, il contenuto non è leggibile dal fornitore) |
 | **OSRM self-hosted** (facoltativo, `ROUTING_PROVIDER=osrm`) | Prima volta che serve la distanza tra un comune e una sede (poi in cache) | Solo coordinate pubbliche: punto interno al comune (confini ISTAT) e sede | Qualunque dato degli utenti, compreso chi ha viaggiato | Infrastruttura aziendale (estratto OpenStreetMap dell'Italia). Con `ROUTING_PROVIDER=estimate` nessun servizio: stima in linea d'aria. Vedi `docs/distanze.md` |
 
+### Demo pubblica (solo dati fittizi)
+La demo descritta in [docs/demo.md](docs/demo.md) gira **fuori dall'infrastruttura aziendale**: app su **Render** (regione Francoforte) e database su **Neon** (regione Francoforte, AWS eu-central-1). Non è un ambiente di produzione e non tratta dati di dipendenti:
+- `DEMO_MODE=true` ammette solo il login con utenze fittizie e rende impossibile attivare l'API aziendale;
+- nessuna email viene inviata (i codici compaiono a schermo);
+- un banner chiede di non inserire dati personali reali.
+
+Restano comunque da considerare l'indirizzo IP e lo user agent di chi la visita, che finiscono nei log di Render, e gli endpoint push dei dispositivi su cui si attivano le notifiche. **Prima di pubblicarla serve l'ok dell'azienda e del DPO** su dove ospitare repository e demo.
+
 ## Notifiche: categorie e canali
 La classificazione si trova in `apps/api/src/notifications/notifications.service.ts` (`NOTIFICATION_CATEGORY`), che è l'unico punto da modificare, ed è verificata da un test (`apps/api/test/email.spec.ts`). Le basi giuridiche sono nel par. 5-bis dell'informativa.
 

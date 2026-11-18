@@ -1,0 +1,53 @@
+# Blueprint di Render per la DEMO pubblica (dati fittizi). Guida: docs/demo.md
+#
+# Un unico servizio web gratuito a Francoforte: l'API serve anche la PWA
+# (stessa origine per cookie di sessione e WebSocket). Database su Neon,
+# indicato in DATABASE_URL. Nessun Docker.
+#
+# Le migrazioni e il seed (idempotente) girano nel comando di build a ogni
+# deploy: il "pre-deploy command" non è disponibile nel piano gratuito.
+services:
+  - type: web
+    name: fcs-demo
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: main
+    buildCommand: npm ci --include=dev && npm run build && npm run db:deploy -w api && npm run db:seed -w api
+    startCommand: node apps/api/dist/main.js
+    healthCheckPath: /api/health
+    envVars:
+      # --- fissi: non modificare ---
+      - key: NODE_VERSION
+        value: 24.18.1 # uguale a .nvmrc (npm 11.16.0 incluso)
+      - key: NODE_ENV
+        value: production
+      - key: DEMO_MODE
+        value: "true"
+      - key: AUTH_PROVIDER
+        value: mock
+      - key: BRAND
+        value: default
+      - key: WEB_DIST_DIR
+        value: apps/web/dist/web/browser
+      - key: TRUST_PROXY
+        value: "1"
+      - key: JOBS_ENABLED
+        value: "true"
+      - key: LOG_LEVEL
+        value: info
+      # --- segreti generati da Render (32 byte casuali in base64) ---
+      - key: HMAC_KEY
+        generateValue: true
+      # --- da inserire alla creazione (vedi docs/demo.md) ---
+      - key: DATABASE_URL # stringa di connessione DIRETTA di Neon con ?sslmode=require
+        sync: false
+      - key: DATA_ENCRYPTION_KEYS # 1:<chiave base64 di 32 byte>
+        sync: false
+      - key: VAPID_PUBLIC_KEY # facoltativa: notifiche push
+        sync: false
+      - key: VAPID_PRIVATE_KEY # facoltativa: notifiche push
+        sync: false
+      - key: VAPID_SUBJECT # facoltativa: mailto:<un tuo indirizzo>
+        sync: false
+      # APP_ORIGIN non serve: se vuota l'app usa RENDER_EXTERNAL_URL, impostata da Render.
