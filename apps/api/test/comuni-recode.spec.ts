@@ -48,8 +48,12 @@ describe('Ricodifica dei comuni nel database', () => {
     await laura.patch('/profile', { comuneIstat: OLD });
     const trip = await createTrip(ctx, driver, { departureComune: OLD, viaComuni: [COMUNI.MONZA] });
     expect((await laura.post(`/trips/${trip.id}/requests`, { boardingComune: OLD })).status).toBe(201);
-    await ctx.prisma.distanceCache.create({
-      data: { comuneIstat: OLD, siteId: ctx.sites[0]!.id, meters: 1000, source: 'ESTIMATED', computedAt: new Date() },
+    // La proposta del viaggio ha già calcolato (e messo in cache) la distanza: si garantisce comunque la riga.
+    const cacheKey = { comuneIstat: OLD, siteId: ctx.sites[0]!.id };
+    await ctx.prisma.distanceCache.upsert({
+      where: { comuneIstat_siteId: cacheKey },
+      create: { ...cacheKey, meters: 1000, source: 'ESTIMATED', computedAt: new Date() },
+      update: {},
     });
 
     await client.query('BEGIN');
